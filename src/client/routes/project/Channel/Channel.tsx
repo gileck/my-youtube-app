@@ -4,7 +4,7 @@ import { Button } from '@/client/components/template/ui/button';
 import { LinearProgress } from '@/client/components/template/ui/linear-progress';
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { ArrowLeft } from 'lucide-react';
-import { VideoCard } from '@/client/features/project/video-card';
+import { VideoGrid } from '@/client/features/project/video-card';
 import { useChannelVideos } from './hooks';
 import { ChannelHeader, ChannelFilters } from './components';
 import type { ChannelFilterValues } from './components';
@@ -85,25 +85,12 @@ export const Channel = () => {
             )}
 
             {videos && videos.length > 0 && (
-                <>
-                    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        {videos.map((video) => (
-                            <VideoCard key={video.id} video={video} />
-                        ))}
-                    </div>
-
-                    {data?.data?.continuation && (
-                        <div className="mt-6 flex justify-center">
-                            <Button
-                                variant="outline"
-                                onClick={() => setPageNumber((p) => p + 1)}
-                                disabled={isLoading}
-                            >
-                                Load more
-                            </Button>
-                        </div>
-                    )}
-                </>
+                <VideoGrid
+                    videos={videos}
+                    continuation={data?.data?.continuation}
+                    isLoading={isLoading}
+                    onLoadMore={() => setPageNumber((p) => p + 1)}
+                />
             )}
         </div>
     );

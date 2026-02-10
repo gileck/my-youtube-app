@@ -5,7 +5,7 @@ import { LinearProgress } from '@/client/components/template/ui/linear-progress'
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { useRouter } from '@/client/features';
 import { Search as SearchIcon } from 'lucide-react';
-import { VideoCard } from '@/client/features/project/video-card';
+import { VideoGrid } from '@/client/features/project/video-card';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
 import { useSearchStore } from './store';
 import { useSearchVideos, useSearchChannels } from './hooks';
@@ -206,23 +206,12 @@ export const Search = () => {
             {/* Video results */}
             {searchType === 'videos' && videos.length > 0 && (
                 <>
-                    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        {videos.map((video) => (
-                            <VideoCard key={video.id} video={video} />
-                        ))}
-                    </div>
-
-                    {videoData?.continuation && (
-                        <div className="mt-6 flex justify-center">
-                            <Button
-                                variant="outline"
-                                onClick={() => setPageNumber((p) => p + 1)}
-                                disabled={isLoading}
-                            >
-                                Load more
-                            </Button>
-                        </div>
-                    )}
+                    <VideoGrid
+                        videos={videos}
+                        continuation={videoData?.continuation}
+                        isLoading={isLoading}
+                        onLoadMore={() => setPageNumber((p) => p + 1)}
+                    />
 
                     {/* Loading indicator for subsequent pages */}
                     {isLoading && pageNumber > 1 && <LinearProgress className="mt-4" />}
