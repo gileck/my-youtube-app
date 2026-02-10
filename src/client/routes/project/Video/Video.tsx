@@ -1,10 +1,9 @@
 import { useRouter } from '@/client/features';
 import { Button } from '@/client/components/template/ui/button';
-import { LinearProgress } from '@/client/components/template/ui/linear-progress';
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { ArrowLeft } from 'lucide-react';
 import { useVideoDetails, useTranscript } from './hooks';
-import { VideoPlayer, VideoInfo, TranscriptSection, ChaptersSection } from './components';
+import { VideoPlayer, VideoInfo, VideoDetailSkeleton, TranscriptSection, ChaptersSection } from './components';
 
 export const Video = () => {
     const { routeParams, navigate } = useRouter();
@@ -28,7 +27,7 @@ export const Video = () => {
                 Back
             </Button>
 
-            {detailsLoading && <LinearProgress />}
+            {detailsLoading && !video && <VideoDetailSkeleton />}
 
             {detailsError && (
                 <div className="mt-6">
@@ -42,7 +41,9 @@ export const Video = () => {
                     <VideoInfo video={video} />
 
                     <div className="mt-4 space-y-2 border-t border-border pt-4">
-                        {transcriptLoading && <LinearProgress />}
+                        {transcriptLoading && (
+                            <p className="text-xs text-muted-foreground animate-pulse">Loading transcript...</p>
+                        )}
 
                         {transcript?.transcript && transcript.transcript.length > 0 && (
                             <TranscriptSection segments={transcript.transcript} />

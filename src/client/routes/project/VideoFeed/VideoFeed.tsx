@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/client/components/template/ui/button';
-import { LinearProgress } from '@/client/components/template/ui/linear-progress';
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
-import { VideoGrid } from '@/client/features/project/video-card';
+import { VideoGrid, VideoGridSkeleton } from '@/client/features/project/video-card';
 import type { ViewMode } from '@/client/features/project/video-card';
 import { useVideoFeedStore } from './store';
 import { useVideoFeed } from './hooks';
@@ -81,7 +80,9 @@ export const VideoFeed = () => {
                         <>
                             <VideoFeedFilters viewMode={viewMode} onViewModeChange={setViewMode} />
 
-                            {isLoading && <LinearProgress className="mt-4" />}
+                            {isLoading && videos.length === 0 && (
+                                <VideoGridSkeleton viewMode={viewMode} />
+                            )}
 
                             {hasError && error && (
                                 <div className="mt-6">
