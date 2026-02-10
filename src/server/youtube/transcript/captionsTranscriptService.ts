@@ -14,6 +14,7 @@ import { Innertube } from 'youtubei.js';
 import type { TranscriptSegment } from '../types';
 import type { TranscriptResponse } from './youtubeTranscriptService';
 import { formatTime } from './youtubeTranscriptService';
+import { youtubeCache, YOUTUBE_CACHE_TTL } from '../youtubeCache';
 
 let innertubePromise: Promise<Innertube> | null = null;
 
@@ -29,33 +30,41 @@ function getInnertube(): Promise<Innertube> {
 }
 
 export const fetchTranscriptViaCaptions = async (videoId: string): Promise<TranscriptResponse> => {
-  const youtube = await getInnertube();
+  const result = await youtubeCache.withCache(
+    async () => {
+      const youtube = await getInnertube();
 
-  const info = await youtube.getBasicInfo(videoId);
-  const captionTracks = info.captions?.caption_tracks;
+      const info = await youtube.getBasicInfo(videoId);
+      const captionTracks = info.captions?.caption_tracks;
 
-  if (!captionTracks || captionTracks.length === 0) {
-    throw new Error('No caption tracks available for this video');
-  }
+      if (!captionTracks || captionTracks.length === 0) {
+        throw new Error('No caption tracks available for this video');
+      }
 
-  const track =
-    captionTracks.find((t) => t.language_code === 'en') ||
-    captionTracks.find((t) => t.language_code?.startsWith('en')) ||
-    captionTracks[0];
+      const track =
+        captionTracks.find((t) => t.language_code === 'en') ||
+        captionTracks.find((t) => t.language_code?.startsWith('en')) ||
+        captionTracks[0];
 
-  if (!track.base_url) {
-    throw new Error('Caption track has no URL');
-  }
+      if (!track.base_url) {
+        throw new Error('Caption track has no URL');
+      }
 
-  const response = await fetch(track.base_url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch captions XML (status ${response.status})`);
-  }
+      const response = await fetch(track.base_url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch captions XML (status ${response.status})`);
+      }
 
-  const xml = await response.text();
-  const segments = parseTimedTextXml(xml);
+      const xml = await response.text();
+      const segments = parseTimedTextXml(xml);
 
-  return { segments };
+      return { segments };
+    },
+    { key: 'yt:transcript', params: { videoId } },
+    { ttl: YOUTUBE_CACHE_TTL }
+  );
+
+  return result.data;
 };
 
 function parseTimedTextXml(xml: string): TranscriptSegment[] {
