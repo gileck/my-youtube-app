@@ -2,14 +2,6 @@ import { useRouter } from '@/client/features';
 import type { YouTubeChannelSearchResult } from '@/apis/project/youtube/types';
 import { BadgeCheck } from 'lucide-react';
 
-function formatCount(count: string): string {
-    const num = parseInt(count, 10);
-    if (isNaN(num)) return count;
-    if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
-    if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
-    return `${num}`;
-}
-
 interface ChannelCardProps {
     channel: YouTubeChannelSearchResult;
 }
@@ -38,7 +30,7 @@ export const ChannelCard = ({ channel }: ChannelCardProps) => {
                     )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                    {formatCount(channel.subscriberCount)} subscribers · {formatCount(channel.videoCount)} videos
+                    {channel.subscriberCount} · {channel.videoCount}
                 </p>
                 {channel.description && (
                     <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
