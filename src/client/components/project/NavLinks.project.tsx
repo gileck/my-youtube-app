@@ -6,7 +6,7 @@
  */
 
 import { NavItem } from '../template/layout/types';
-import { Home, MessageSquare, Settings, CheckSquare, Palette, Lightbulb, BarChart3 } from 'lucide-react';
+import { Search, MessageSquare, Settings, CheckSquare, Palette, Lightbulb, BarChart3 } from 'lucide-react';
 
 /** Project-specific admin menu items */
 export const projectAdminMenuItems: NavItem[] = [
@@ -15,7 +15,7 @@ export const projectAdminMenuItems: NavItem[] = [
 
 /** Bottom navigation bar items */
 export const navItems: NavItem[] = [
-  { path: '/', label: 'Home', icon: <Home size={18} /> },
+  { path: '/', label: 'Search', icon: <Search size={18} /> },
   { path: '/todos', label: 'Todos', icon: <CheckSquare size={18} /> },
   { path: '/ai-chat', label: 'AI Chat', icon: <MessageSquare size={18} /> },
   { path: '/settings', label: 'Settings', icon: <Settings size={18} /> },
@@ -23,7 +23,7 @@ export const navItems: NavItem[] = [
 
 /** Regular app menu items (non-admin) */
 export const menuItems: NavItem[] = [
-  { path: '/', label: 'Home', icon: <Home size={18} /> },
+  { path: '/', label: 'Search', icon: <Search size={18} /> },
   { path: '/ai-chat', label: 'AI Chat', icon: <MessageSquare size={18} /> },
   { path: '/todos', label: 'Todos', icon: <CheckSquare size={18} /> },
   { path: '/my-requests', label: 'My Requests', icon: <Lightbulb size={18} /> },

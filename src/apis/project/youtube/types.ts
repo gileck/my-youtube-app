@@ -4,6 +4,8 @@ import type {
     YouTubeChannelSearchResult,
     YouTubeChannelInfo,
     CombinedTranscriptChapters,
+    TranscriptSegment,
+    ChapterWithContent,
 } from '@/server/youtube/types';
 
 // Re-export data types for client usage
@@ -13,6 +15,8 @@ export type {
     YouTubeChannelSearchResult,
     YouTubeChannelInfo,
     CombinedTranscriptChapters,
+    TranscriptSegment,
+    ChapterWithContent,
 };
 
 // Search Videos

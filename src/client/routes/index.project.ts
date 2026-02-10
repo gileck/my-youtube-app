@@ -20,6 +20,7 @@ import { AIChat } from './project/AIChat';
 import { Todos } from './project/Todos';
 import { SingleTodo } from './project/SingleTodo';
 import { Dashboard } from './project/Dashboard';
+import { Video } from './project/Video';
 
 /**
  * Project route definitions.
@@ -31,6 +32,7 @@ export const projectRoutes: Routes = {
   '/ai-chat': AIChat,
   '/todos': Todos,
   '/todos/:todoId': SingleTodo,
+  '/video/:videoId': Video,
 
   // Admin routes
   '/admin/dashboard': Dashboard,
