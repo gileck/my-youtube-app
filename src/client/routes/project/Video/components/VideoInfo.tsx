@@ -1,4 +1,5 @@
 import { useRouter } from '@/client/features';
+import { ExternalLink } from 'lucide-react';
 import type { YouTubeVideoDetails } from '@/apis/project/youtube/types';
 
 function formatCount(count: string): string {
@@ -22,9 +23,19 @@ export const VideoInfo = ({ video }: VideoInfoProps) => {
 
     return (
         <div className="mt-3">
-            <h1 className="text-lg font-semibold text-foreground leading-snug">
-                {video.title}
-            </h1>
+            <div className="flex items-start gap-2">
+                <h1 className="text-lg font-semibold text-foreground leading-snug flex-1">
+                    {video.title}
+                </h1>
+                <a
+                    href={`https://www.youtube.com/watch?v=${video.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 mt-1 text-muted-foreground hover:text-foreground"
+                >
+                    <ExternalLink size={16} />
+                </a>
+            </div>
             <div className="mt-2 flex items-center gap-3">
                 {video.channelImage && (
                     <img

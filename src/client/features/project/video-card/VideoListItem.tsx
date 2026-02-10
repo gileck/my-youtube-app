@@ -1,4 +1,5 @@
 import { useRouter } from '@/client/features';
+import { ExternalLink } from 'lucide-react';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
 import { formatViewCount, formatPublishedDate } from './formatUtils';
 
@@ -44,9 +45,20 @@ export const VideoListItem = ({ video }: VideoListItemProps) => {
                 >
                     {video.channelTitle}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                    {formatViewCount(video.viewCount)}
-                    {video.publishedAt && ` · ${formatPublishedDate(video.publishedAt)}`}
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <span>
+                        {formatViewCount(video.viewCount)}
+                        {video.publishedAt && ` · ${formatPublishedDate(video.publishedAt)}`}
+                    </span>
+                    <a
+                        href={`https://www.youtube.com/watch?v=${video.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-shrink-0 hover:text-foreground"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <ExternalLink size={12} />
+                    </a>
                 </p>
             </div>
         </div>
