@@ -1,6 +1,15 @@
 import { fetchTranscript } from './transcript/youtubeTranscriptService';
+import { fetchTranscriptViaCaptions } from './transcript/captionsTranscriptService';
 import { fetchChapters } from './chapters/chaptersService';
 import type { Chapter, ChapterWithContent, CombinedTranscriptChapters, TranscriptSegment } from './types';
+
+/**
+ * Use the captions-based workaround by default.
+ * The formal getTranscript API is broken due to YouTube BotGuard attestation (Dec 2025).
+ * See: https://github.com/LuanRT/YouTube.js/issues/1102
+ * Set to false to revert to the formal API once youtubei.js ships a fix.
+ */
+const USE_CAPTIONS_WORKAROUND = true;
 
 const chapterFilterConfig = {
   filteredPhrases: ['sponsor', 'advertisement', 'ad break', 'promotion'],
@@ -228,8 +237,9 @@ export async function getChaptersTranscripts(
   }
 ): Promise<CombinedTranscriptChapters> {
   try {
+    const fetchFn = USE_CAPTIONS_WORKAROUND ? fetchTranscriptViaCaptions : fetchTranscript;
     const [transcript, chapters] = await Promise.all([
-      fetchTranscript(videoId),
+      fetchFn(videoId),
       fetchChapters(videoId),
     ]);
 
