@@ -2,7 +2,7 @@ import { useRouter } from '@/client/features';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
 
 function formatViewCount(viewCount: string): string {
-    const num = parseInt(viewCount, 10);
+    const num = parseInt(viewCount.replace(/[,\s]/g, ''), 10);
     if (isNaN(num)) return viewCount;
     if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M views`;
     if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K views`;
