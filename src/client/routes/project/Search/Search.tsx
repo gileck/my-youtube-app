@@ -8,6 +8,7 @@ import { Search as SearchIcon } from 'lucide-react';
 import { VideoGrid } from '@/client/features/project/video-card';
 import type { ViewMode } from '@/client/features/project/video-card';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
+import { parseRelativeTimeToSeconds } from '@/common/utils/parseRelativeTime';
 import { useSearchStore } from './store';
 import { useSearchVideos, useSearchChannels } from './hooks';
 import { SearchFilters, ChannelCard, RecentSearches } from './components';
@@ -71,17 +72,22 @@ export const Search = () => {
     // Accumulate videos for load-more
     useEffect(() => {
         if (!videoData) return;
-        // Combine primary + filtered videos (bug fix: [] is not nullish so ?? doesn't work)
+        // Combine primary + filtered videos, re-sort since filteredVideos breaks order
         const pageVideos = [
             ...(videoData.videos ?? []),
             ...(videoData.filteredVideos ?? []),
         ];
+        if (sortBy === 'date') {
+            pageVideos.sort((a, b) =>
+                parseRelativeTimeToSeconds(a.publishedAt) - parseRelativeTimeToSeconds(b.publishedAt)
+            );
+        }
         if (pageNumber === 1) {
             setAccumulatedVideos(pageVideos);
         } else {
             setAccumulatedVideos((prev) => [...prev, ...pageVideos]);
         }
-    }, [videoData, pageNumber]);
+    }, [videoData, pageNumber, sortBy]);
 
     const videos = accumulatedVideos;
     const channels = channelData?.channels ?? [];
