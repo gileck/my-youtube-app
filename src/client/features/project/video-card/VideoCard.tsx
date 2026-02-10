@@ -43,7 +43,7 @@ export const VideoCard = ({ video }: VideoCardProps) => {
                         onClick={handleChannelClick}
                     />
                 )}
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
                         {video.title}
                     </h3>

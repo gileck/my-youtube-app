@@ -54,7 +54,7 @@ export const VideoListItem = ({ video }: VideoListItemProps) => {
                         href={`https://www.youtube.com/watch?v=${video.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-shrink-0 hover:text-foreground"
+                        className="ml-auto flex-shrink-0 hover:text-foreground"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <ExternalLink size={12} />
