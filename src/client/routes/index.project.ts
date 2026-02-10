@@ -23,6 +23,7 @@ import { Dashboard } from './project/Dashboard';
 import { Video } from './project/Video';
 import { Channel } from './project/Channel';
 import { CacheStats } from './project/CacheStats';
+import { VideoFeed } from './project/VideoFeed';
 
 /**
  * Project route definitions.
@@ -41,6 +42,7 @@ export const projectRoutes: Routes = {
   '/admin/dashboard': Dashboard,
 
   '/cache-stats': CacheStats,
+  '/video-feed': VideoFeed,
 
   // Add more project-specific routes here:
   // '/my-page': MyPage,

@@ -1,3 +1,5 @@
+import { Button } from '@/client/components/template/ui/button';
+import { useSubscriptionsStore } from '@/client/features/project/subscriptions';
 import type { YouTubeChannelInfo } from '@/apis/project/youtube/types';
 
 function formatCount(count: string): string {
@@ -13,6 +15,23 @@ interface ChannelHeaderProps {
 }
 
 export const ChannelHeader = ({ channel }: ChannelHeaderProps) => {
+    const channels = useSubscriptionsStore((s) => s.channels);
+    const subscribeChannel = useSubscriptionsStore((s) => s.subscribeChannel);
+    const unsubscribeChannel = useSubscriptionsStore((s) => s.unsubscribeChannel);
+    const isSubscribed = channels.some((c) => c.id === channel.id);
+
+    const handleToggleSubscribe = () => {
+        if (isSubscribed) {
+            unsubscribeChannel(channel.id);
+        } else {
+            subscribeChannel({
+                id: channel.id,
+                title: channel.title,
+                thumbnailUrl: channel.thumbnailUrl,
+            });
+        }
+    };
+
     return (
         <div className="flex items-start gap-4 mb-4">
             {channel.thumbnailUrl && (
@@ -22,7 +41,7 @@ export const ChannelHeader = ({ channel }: ChannelHeaderProps) => {
                     className="w-16 h-16 rounded-full flex-shrink-0"
                 />
             )}
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                     <h1 className="text-lg font-semibold text-foreground truncate">
                         {channel.title}
@@ -30,6 +49,14 @@ export const ChannelHeader = ({ channel }: ChannelHeaderProps) => {
                     {channel.isVerified && (
                         <span className="text-xs text-muted-foreground flex-shrink-0">✓</span>
                     )}
+                    <Button
+                        variant={isSubscribed ? 'outline' : 'default'}
+                        size="sm"
+                        className="ml-auto flex-shrink-0"
+                        onClick={handleToggleSubscribe}
+                    >
+                        {isSubscribed ? 'Subscribed' : 'Subscribe'}
+                    </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
                     {channel.subscriberCount && `${formatCount(channel.subscriberCount)} subscribers`}

@@ -1,4 +1,6 @@
 import { useRouter } from '@/client/features';
+import { Button } from '@/client/components/template/ui/button';
+import { useSubscriptionsStore } from '@/client/features/project/subscriptions';
 import type { YouTubeChannelSearchResult } from '@/apis/project/youtube/types';
 import { BadgeCheck } from 'lucide-react';
 
@@ -8,6 +10,23 @@ interface ChannelCardProps {
 
 export const ChannelCard = ({ channel }: ChannelCardProps) => {
     const { navigate } = useRouter();
+    const channels = useSubscriptionsStore((s) => s.channels);
+    const subscribeChannel = useSubscriptionsStore((s) => s.subscribeChannel);
+    const unsubscribeChannel = useSubscriptionsStore((s) => s.unsubscribeChannel);
+    const isSubscribed = channels.some((c) => c.id === channel.id);
+
+    const handleToggleSubscribe = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isSubscribed) {
+            unsubscribeChannel(channel.id);
+        } else {
+            subscribeChannel({
+                id: channel.id,
+                title: channel.title,
+                thumbnailUrl: channel.thumbnailUrl,
+            });
+        }
+    };
 
     return (
         <div
@@ -38,6 +57,14 @@ export const ChannelCard = ({ channel }: ChannelCardProps) => {
                     </p>
                 )}
             </div>
+            <Button
+                variant={isSubscribed ? 'outline' : 'default'}
+                size="sm"
+                className="flex-shrink-0"
+                onClick={handleToggleSubscribe}
+            >
+                {isSubscribed ? 'Subscribed' : 'Subscribe'}
+            </Button>
         </div>
     );
 };
