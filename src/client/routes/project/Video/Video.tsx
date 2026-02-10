@@ -1,12 +1,10 @@
 import { useRouter } from '@/client/features';
-import { Button } from '@/client/components/template/ui/button';
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
-import { ArrowLeft } from 'lucide-react';
 import { useVideoDetails, useTranscript } from './hooks';
 import { VideoPlayer, VideoInfo, VideoDetailSkeleton, TranscriptSection, ChaptersSection } from './components';
 
 export const Video = () => {
-    const { routeParams, navigate } = useRouter();
+    const { routeParams } = useRouter();
     const videoId = routeParams.videoId ?? '';
 
     const { data: detailsData, isLoading: detailsLoading, error: detailsError } = useVideoDetails(videoId);
@@ -17,16 +15,6 @@ export const Video = () => {
 
     return (
         <div className="mx-auto max-w-3xl px-4 py-4">
-            <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/')}
-                className="gap-1.5 mb-3 -ml-2"
-            >
-                <ArrowLeft size={16} />
-                Back
-            </Button>
-
             {detailsLoading && !video && <VideoDetailSkeleton />}
 
             {detailsError && (

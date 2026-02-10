@@ -1,9 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from '@/client/features';
-import { Button } from '@/client/components/template/ui/button';
 import { LinearProgress } from '@/client/components/template/ui/linear-progress';
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
-import { ArrowLeft } from 'lucide-react';
 import { VideoGrid } from '@/client/features/project/video-card';
 import type { ViewMode } from '@/client/features/project/video-card';
 import { useChannelVideos } from './hooks';
@@ -19,7 +17,7 @@ const DEFAULT_FILTERS: ChannelFilterValues = {
 };
 
 export const Channel = () => {
-    const { routeParams, navigate } = useRouter();
+    const { routeParams } = useRouter();
     const channelId = routeParams.channelId ?? '';
 
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral pagination state tied to channel view
@@ -47,16 +45,6 @@ export const Channel = () => {
 
     return (
         <div className="mx-auto max-w-3xl px-4 py-4">
-            <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/')}
-                className="gap-1.5 mb-3 -ml-2"
-            >
-                <ArrowLeft size={16} />
-                Back
-            </Button>
-
             {isLoading && !data && <LinearProgress />}
 
             {error && (

@@ -12,7 +12,6 @@ import { Badge } from '@/client/components/template/ui/badge';
 import { LinearProgress } from '@/client/components/template/ui/linear-progress';
 import { Input } from '@/client/components/template/ui/input';
 import {
-    ArrowLeft,
     Calendar,
     Clock,
     RefreshCw,
@@ -271,30 +270,6 @@ const SingleTodo = () => {
             <div className="mx-auto max-w-2xl">
                 {/* Header Section */}
                 <div className="mb-6">
-                    {/* Desktop breadcrumb */}
-                    <div className="hidden sm:flex items-center gap-2 mb-3">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate('/todos')}
-                            className="hover:bg-muted/50"
-                        >
-                            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Todos
-                        </Button>
-                    </div>
-
-                    {/* Mobile back button */}
-                    <div className="sm:hidden mb-4">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate('/todos')}
-                            className="hover:bg-muted/50"
-                        >
-                            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-                        </Button>
-                    </div>
-
                     {/* Breadcrumb text */}
                     <div className="text-sm text-muted-foreground hidden sm:block">
                         <span>My Todos</span>

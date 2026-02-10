@@ -4,7 +4,7 @@ import { Button } from '@/client/components/template/ui/button';
 import { LinearProgress } from '@/client/components/template/ui/linear-progress';
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { useRouter } from '@/client/features';
-import { Search as SearchIcon } from 'lucide-react';
+import { Search as SearchIcon, X } from 'lucide-react';
 import { VideoGrid } from '@/client/features/project/video-card';
 import type { ViewMode } from '@/client/features/project/video-card';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
@@ -102,6 +102,14 @@ export const Search = () => {
         }
     };
 
+    const handleClear = () => {
+        setInputValue('');
+        setQuery('');
+        setPageNumber(1);
+        setAccumulatedVideos([]);
+        navigate('/', { replace: true });
+    };
+
     const handleRecentSelect = (recentQuery: string) => {
         setInputValue(recentQuery);
         setQuery(recentQuery);
@@ -132,13 +140,25 @@ export const Search = () => {
     return (
         <div className="mx-auto max-w-3xl px-4 py-4">
             <div className="flex gap-2">
-                <Input
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Search YouTube..."
-                    className="flex-1"
-                />
+                <div className="relative flex-1">
+                    <Input
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Search YouTube..."
+                        className={inputValue ? 'pr-8' : ''}
+                    />
+                    {inputValue && (
+                        <button
+                            type="button"
+                            onClick={handleClear}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            aria-label="Clear search"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
+                </div>
                 <Button onClick={handleSearch} size="icon" aria-label="Search">
                     <SearchIcon size={18} />
                 </Button>
