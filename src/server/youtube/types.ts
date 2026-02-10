@@ -1,4 +1,5 @@
 import type { Types } from 'youtubei.js';
+import type { CacheResult } from '@/common/cache/types';
 
 // ==========================================
 // Request/Param Types
@@ -163,8 +164,8 @@ export interface CombinedTranscriptChapters {
 // ==========================================
 
 export interface YouTubeApiAdapter {
-  searchVideos(params: YouTubeSearchParams): Promise<YouTubeSearchVideosResponse>;
-  searchChannels(params: YouTubeChannelSearchParams): Promise<YouTubeSearchChannelsResponse>;
-  getVideoDetails(params: YouTubeVideoParams): Promise<YouTubeVideoDetails | null>;
-  getChannelVideos(params: YouTubeChannelParams): Promise<YouTubeChannelResponse>;
+  searchVideos(params: YouTubeSearchParams): Promise<CacheResult<YouTubeSearchVideosResponse>>;
+  searchChannels(params: YouTubeChannelSearchParams): Promise<CacheResult<YouTubeSearchChannelsResponse>>;
+  getVideoDetails(params: YouTubeVideoParams): Promise<CacheResult<YouTubeVideoDetails | null>>;
+  getChannelVideos(params: YouTubeChannelParams): Promise<CacheResult<YouTubeChannelResponse>>;
 }

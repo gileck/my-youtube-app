@@ -1,5 +1,6 @@
 import { Innertube } from 'youtubei.js';
 import type { YTNodes } from 'youtubei.js';
+import type { CacheResult } from '@/common/cache/types';
 import type { TranscriptSegment } from '../types';
 
 export interface TranscriptResponse {
@@ -14,7 +15,7 @@ export const formatTime = (seconds: number): string => {
   return `${formattedMinutes}:${formattedSeconds}`;
 };
 
-export const fetchTranscript = async (videoId: string): Promise<TranscriptResponse> => {
+export const fetchTranscript = async (videoId: string): Promise<CacheResult<TranscriptResponse>> => {
   const originalConsoleWarning = console.warn;
   console.warn = (...args: unknown[]) => {
     const errorMessage = args.map((arg) => String(arg)).join(' ');
@@ -94,7 +95,7 @@ export const fetchTranscript = async (videoId: string): Promise<TranscriptRespon
     });
   }
 
-  return { segments: processedSegments };
+  return { data: { segments: processedSegments }, isFromCache: false };
 };
 
 export const youtubeTranscriptService = { fetchTranscript };

@@ -11,18 +11,19 @@ export const getTranscript = async (
             return { error: "videoId is required" };
         }
 
-        const result = await getChaptersTranscripts(request.videoId, {
+        const { data, isFromCache } = await getChaptersTranscripts(request.videoId, {
             overlapOffsetSeconds: request.overlapOffsetSeconds ?? 5,
         });
 
-        if (result.error) {
-            return { error: result.error };
+        if (data.error) {
+            return { error: data.error };
         }
 
-        return { result };
+        return { result: data, _isFromCache: isFromCache };
     } catch (error: unknown) {
         console.error("Get transcript error:", error);
-        return { error: error instanceof Error ? error.message : "Failed to get transcript" };
+        const msg = error instanceof Error ? error.message : "Failed to get transcript";
+        return { error: msg, _isRateLimited: /429|rate.limit|quota/i.test(msg) || undefined };
     }
 };
 

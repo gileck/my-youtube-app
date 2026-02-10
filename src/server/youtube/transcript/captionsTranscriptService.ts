@@ -11,6 +11,7 @@
  * in youtubeTranscriptService.ts.
  */
 import { Innertube } from 'youtubei.js';
+import type { CacheResult } from '@/common/cache/types';
 import type { TranscriptSegment } from '../types';
 import type { TranscriptResponse } from './youtubeTranscriptService';
 import { formatTime } from './youtubeTranscriptService';
@@ -29,7 +30,7 @@ function getInnertube(): Promise<Innertube> {
   return innertubePromise;
 }
 
-export const fetchTranscriptViaCaptions = async (videoId: string): Promise<TranscriptResponse> => {
+export const fetchTranscriptViaCaptions = async (videoId: string): Promise<CacheResult<TranscriptResponse>> => {
   const result = await youtubeCache.withCache(
     async () => {
       const youtube = await getInnertube();
@@ -64,7 +65,7 @@ export const fetchTranscriptViaCaptions = async (videoId: string): Promise<Trans
     { ttl: YOUTUBE_CACHE_TTL }
   );
 
-  return result.data;
+  return result;
 };
 
 function parseTimedTextXml(xml: string): TranscriptSegment[] {

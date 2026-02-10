@@ -6,7 +6,7 @@
  */
 
 import { NavItem } from '../template/layout/types';
-import { Search, MessageSquare, Settings, CheckSquare, Palette, Lightbulb, BarChart3 } from 'lucide-react';
+import { Search, MessageSquare, Settings, CheckSquare, Palette, Lightbulb, BarChart3, Database } from 'lucide-react';
 
 /** Project-specific admin menu items */
 export const projectAdminMenuItems: NavItem[] = [
@@ -27,6 +27,7 @@ export const menuItems: NavItem[] = [
   { path: '/ai-chat', label: 'AI Chat', icon: <MessageSquare size={18} /> },
   { path: '/todos', label: 'Todos', icon: <CheckSquare size={18} /> },
   { path: '/my-requests', label: 'My Requests', icon: <Lightbulb size={18} /> },
+  { path: '/cache-stats', label: 'Cache Stats', icon: <Database size={18} /> },
   { path: '/theme', label: 'Theme', icon: <Palette size={18} /> },
   { path: '/settings', label: 'Settings', icon: <Settings size={18} /> },
 ];

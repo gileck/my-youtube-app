@@ -271,13 +271,16 @@ export const apiClient = {
   }
 };
 
-/** Attach errorCode and errorDetails from server response to an Error object */
+/** Attach errorCode, errorDetails, and _isRateLimited from server response to an Error object */
 function attachServerErrorFields(err: Error, data: Record<string, unknown>): void {
   if (data.errorCode) {
     (err as Error & { errorCode?: string }).errorCode = String(data.errorCode);
   }
   if (data.errorDetails) {
     (err as Error & { errorDetails?: string }).errorDetails = String(data.errorDetails);
+  }
+  if (data._isRateLimited) {
+    (err as Error & { _isRateLimited?: boolean })._isRateLimited = true;
   }
 }
 

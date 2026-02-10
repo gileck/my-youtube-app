@@ -12,7 +12,7 @@ export const searchVideos = async (
             return { error: "Query is required" };
         }
 
-        const result = await youtubeAdapter.searchVideos({
+        const cacheResult = await youtubeAdapter.searchVideos({
             query: request.query,
             sortBy: request.sortBy,
             upload_date: request.upload_date,
@@ -23,14 +23,16 @@ export const searchVideos = async (
         } as YouTubeSearchParams);
 
         return {
-            videos: result.videos,
-            filteredVideos: result.filteredVideos,
-            continuation: result.continuation,
-            estimatedResults: result.estimatedResults,
+            videos: cacheResult.data.videos,
+            filteredVideos: cacheResult.data.filteredVideos,
+            continuation: cacheResult.data.continuation,
+            estimatedResults: cacheResult.data.estimatedResults,
+            _isFromCache: cacheResult.isFromCache,
         };
     } catch (error: unknown) {
         console.error("Search videos error:", error);
-        return { error: error instanceof Error ? error.message : "Failed to search videos" };
+        const msg = error instanceof Error ? error.message : "Failed to search videos";
+        return { error: msg, _isRateLimited: /429|rate.limit|quota/i.test(msg) || undefined };
     }
 };
 

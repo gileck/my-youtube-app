@@ -12,20 +12,21 @@ export const getChannelVideos = async (
             return { error: "channelId is required" };
         }
 
-        const result = await youtubeAdapter.getChannelVideos({
+        const cacheResult = await youtubeAdapter.getChannelVideos({
             channelId: request.channelId,
             filters: request.filters,
             pageNumber: request.pageNumber,
         } as YouTubeChannelParams);
 
-        if (result.error) {
-            return { error: result.error.message };
+        if (cacheResult.data.error) {
+            return { error: cacheResult.data.error.message };
         }
 
-        return { data: result.data };
+        return { data: cacheResult.data.data, _isFromCache: cacheResult.isFromCache };
     } catch (error: unknown) {
         console.error("Get channel videos error:", error);
-        return { error: error instanceof Error ? error.message : "Failed to get channel videos" };
+        const msg = error instanceof Error ? error.message : "Failed to get channel videos";
+        return { error: msg, _isRateLimited: /429|rate.limit|quota/i.test(msg) || undefined };
     }
 };
 

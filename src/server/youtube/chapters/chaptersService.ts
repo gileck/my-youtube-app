@@ -1,8 +1,9 @@
 import parseYouTubeChapters from './parseChapters';
+import type { CacheResult } from '@/common/cache/types';
 import type { Chapter } from '../types';
 import { youtubeCache, YOUTUBE_CACHE_TTL } from '../youtubeCache';
 
-export async function fetchChapters(videoId: string): Promise<Chapter[]> {
+export async function fetchChapters(videoId: string): Promise<CacheResult<Chapter[]>> {
   try {
     const result = await youtubeCache.withCache(
       async () => {
@@ -47,9 +48,9 @@ export async function fetchChapters(videoId: string): Promise<Chapter[]> {
       { ttl: YOUTUBE_CACHE_TTL }
     );
 
-    return result.data;
+    return result;
   } catch (error) {
     console.error(`Error fetching chapters for video ${videoId}:`, error);
-    return [];
+    return { data: [], isFromCache: false };
   }
 }

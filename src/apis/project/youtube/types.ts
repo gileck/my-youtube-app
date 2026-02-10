@@ -36,6 +36,8 @@ export interface SearchVideosResponse {
     continuation?: boolean;
     estimatedResults?: number;
     error?: string;
+    _isFromCache?: boolean;
+    _isRateLimited?: boolean;
 }
 
 // Search Channels
@@ -46,6 +48,8 @@ export interface SearchChannelsRequest {
 export interface SearchChannelsResponse {
     channels?: YouTubeChannelSearchResult[];
     error?: string;
+    _isFromCache?: boolean;
+    _isRateLimited?: boolean;
 }
 
 // Get Video Details
@@ -56,6 +60,8 @@ export interface GetVideoDetailsRequest {
 export interface GetVideoDetailsResponse {
     video?: YouTubeVideoDetails;
     error?: string;
+    _isFromCache?: boolean;
+    _isRateLimited?: boolean;
 }
 
 // Channel video filters (client-safe, no server-only dependencies)
@@ -83,6 +89,8 @@ export interface GetChannelVideosResponse {
         estimatedResults: number;
     };
     error?: string;
+    _isFromCache?: boolean;
+    _isRateLimited?: boolean;
 }
 
 // Get Transcript
@@ -94,6 +102,8 @@ export interface GetTranscriptRequest {
 export interface GetTranscriptResponse {
     result?: CombinedTranscriptChapters;
     error?: string;
+    _isFromCache?: boolean;
+    _isRateLimited?: boolean;
 }
 
 export interface ApiHandlerContext {

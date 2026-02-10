@@ -11,18 +11,19 @@ export const getVideoDetails = async (
             return { error: "videoId is required" };
         }
 
-        const video = await youtubeAdapter.getVideoDetails({
+        const cacheResult = await youtubeAdapter.getVideoDetails({
             videoId: request.videoId,
         });
 
-        if (!video) {
+        if (!cacheResult.data) {
             return { error: "Video not found" };
         }
 
-        return { video };
+        return { video: cacheResult.data, _isFromCache: cacheResult.isFromCache };
     } catch (error: unknown) {
         console.error("Get video details error:", error);
-        return { error: error instanceof Error ? error.message : "Failed to get video details" };
+        const msg = error instanceof Error ? error.message : "Failed to get video details";
+        return { error: msg, _isRateLimited: /429|rate.limit|quota/i.test(msg) || undefined };
     }
 };
 

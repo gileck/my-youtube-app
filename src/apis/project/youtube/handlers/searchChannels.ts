@@ -11,14 +11,15 @@ export const searchChannels = async (
             return { error: "Query is required" };
         }
 
-        const result = await youtubeAdapter.searchChannels({
+        const cacheResult = await youtubeAdapter.searchChannels({
             query: request.query,
         });
 
-        return { channels: result.channels };
+        return { channels: cacheResult.data.channels, _isFromCache: cacheResult.isFromCache };
     } catch (error: unknown) {
         console.error("Search channels error:", error);
-        return { error: error instanceof Error ? error.message : "Failed to search channels" };
+        const msg = error instanceof Error ? error.message : "Failed to search channels";
+        return { error: msg, _isRateLimited: /429|rate.limit|quota/i.test(msg) || undefined };
     }
 };
 

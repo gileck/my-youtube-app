@@ -21,6 +21,7 @@ import { Todos } from './project/Todos';
 import { SingleTodo } from './project/SingleTodo';
 import { Dashboard } from './project/Dashboard';
 import { Video } from './project/Video';
+import { CacheStats } from './project/CacheStats';
 
 /**
  * Project route definitions.
@@ -36,6 +37,8 @@ export const projectRoutes: Routes = {
 
   // Admin routes
   '/admin/dashboard': Dashboard,
+
+  '/cache-stats': CacheStats,
 
   // Add more project-specific routes here:
   // '/my-page': MyPage,

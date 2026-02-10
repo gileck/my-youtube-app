@@ -1,5 +1,6 @@
 import { Innertube, YTNodes } from 'youtubei.js';
 import type { Types } from 'youtubei.js';
+import type { CacheResult } from '@/common/cache/types';
 import type {
   YouTubeApiAdapter,
   YouTubeSearchParams,
@@ -97,7 +98,7 @@ export const createYouTubeAdapter = (): YouTubeApiAdapter => {
   }
 
   return {
-    async searchVideos(params: YouTubeSearchParams): Promise<YouTubeSearchVideosResponse> {
+    async searchVideos(params: YouTubeSearchParams): Promise<CacheResult<YouTubeSearchVideosResponse>> {
       const { query, minViews = 0, pageNumber = 1 } = params;
 
       const result = await youtubeCache.withCache(
@@ -165,10 +166,10 @@ export const createYouTubeAdapter = (): YouTubeApiAdapter => {
         { ttl: YOUTUBE_CACHE_TTL }
       );
 
-      return result.data;
+      return result;
     },
 
-    async searchChannels(params: YouTubeChannelSearchParams): Promise<YouTubeSearchChannelsResponse> {
+    async searchChannels(params: YouTubeChannelSearchParams): Promise<CacheResult<YouTubeSearchChannelsResponse>> {
       const { query } = params;
 
       const result = await youtubeCache.withCache(
@@ -193,10 +194,10 @@ export const createYouTubeAdapter = (): YouTubeApiAdapter => {
         { ttl: YOUTUBE_CACHE_TTL }
       );
 
-      return result.data;
+      return result;
     },
 
-    async getVideoDetails(params: YouTubeVideoParams): Promise<YouTubeVideoDetails | null> {
+    async getVideoDetails(params: YouTubeVideoParams): Promise<CacheResult<YouTubeVideoDetails | null>> {
       try {
         const { videoId } = params;
 
@@ -250,13 +251,13 @@ export const createYouTubeAdapter = (): YouTubeApiAdapter => {
           { ttl: YOUTUBE_CACHE_TTL }
         );
 
-        return result.data;
+        return result;
       } catch {
-        return null;
+        return { data: null, isFromCache: false };
       }
     },
 
-    async getChannelVideos(params: YouTubeChannelParams): Promise<YouTubeChannelResponse> {
+    async getChannelVideos(params: YouTubeChannelParams): Promise<CacheResult<YouTubeChannelResponse>> {
       try {
         const { channelId, filters, pageNumber } = params;
 
@@ -341,13 +342,16 @@ export const createYouTubeAdapter = (): YouTubeApiAdapter => {
           { ttl: YOUTUBE_CACHE_TTL }
         );
 
-        return result.data;
+        return result;
       } catch (error) {
         return {
-          error: {
-            message: error instanceof Error ? error.message : 'Unknown error occurred',
-            code: 'YOUTUBE_CHANNEL_VIDEOS_ERROR',
+          data: {
+            error: {
+              message: error instanceof Error ? error.message : 'Unknown error occurred',
+              code: 'YOUTUBE_CHANNEL_VIDEOS_ERROR',
+            },
           },
+          isFromCache: false,
         };
       }
     },

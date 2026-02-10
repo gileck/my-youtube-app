@@ -235,16 +235,20 @@ export async function getChaptersTranscripts(
     segmentsPerChapter: 30,
     totalChapters: 0,
   }
-): Promise<CombinedTranscriptChapters> {
+): Promise<{ data: CombinedTranscriptChapters; isFromCache: boolean }> {
   try {
     const fetchFn = USE_CAPTIONS_WORKAROUND ? fetchTranscriptViaCaptions : fetchTranscript;
-    const [transcript, chapters] = await Promise.all([
+    const [transcriptResult, chaptersResult] = await Promise.all([
       fetchFn(videoId),
       fetchChapters(videoId),
     ]);
 
+    const transcript = transcriptResult.data;
+    const chapters = chaptersResult.data;
+    const isFromCache = transcriptResult.isFromCache && chaptersResult.isFromCache;
+
     if (chapters.length === 0) {
-      return splitTranscriptToChapters(transcript.segments, videoId, options);
+      return { data: splitTranscriptToChapters(transcript.segments, videoId, options), isFromCache };
     }
 
     const filteredTranscript = transcript.segments.filter(
@@ -259,20 +263,23 @@ export async function getChaptersTranscripts(
         ? filteredChapters
         : [{ title: 'Full Video', startTime: 0, endTime: Number.MAX_SAFE_INTEGER }];
 
-    return combineTranscriptAndChapters(filteredTranscript, effectiveChapters, videoId, options);
+    return { data: combineTranscriptAndChapters(filteredTranscript, effectiveChapters, videoId, options), isFromCache };
   } catch (error) {
     console.error(`Error getting chapters and transcript for video ${videoId}:`, error);
     return {
-      videoId,
-      metadata: {
-        totalDuration: 0,
-        chapterCount: 0,
-        transcriptItemCount: 0,
-        overlapOffsetSeconds: options.overlapOffsetSeconds,
+      data: {
+        videoId,
+        metadata: {
+          totalDuration: 0,
+          chapterCount: 0,
+          transcriptItemCount: 0,
+          overlapOffsetSeconds: options.overlapOffsetSeconds,
+        },
+        transcript: [],
+        chapters: [],
+        error: error instanceof Error ? error.message : String(error),
       },
-      transcript: [],
-      chapters: [],
-      error: error instanceof Error ? error.message : String(error),
+      isFromCache: false,
     };
   }
 }
