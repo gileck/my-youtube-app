@@ -1,0 +1,97 @@
+import type {
+    YouTubeVideoSearchResult,
+    YouTubeVideoDetails,
+    YouTubeChannelSearchResult,
+    YouTubeChannelInfo,
+    CombinedTranscriptChapters,
+} from '@/server/youtube/types';
+
+// Re-export data types for client usage
+export type {
+    YouTubeVideoSearchResult,
+    YouTubeVideoDetails,
+    YouTubeChannelSearchResult,
+    YouTubeChannelInfo,
+    CombinedTranscriptChapters,
+};
+
+// Search Videos
+export interface SearchVideosRequest {
+    query: string;
+    sortBy?: string;
+    upload_date?: string;
+    duration?: string;
+    features?: string[];
+    minViews?: number;
+    pageNumber?: number;
+}
+
+export interface SearchVideosResponse {
+    videos?: YouTubeVideoSearchResult[];
+    filteredVideos?: YouTubeVideoSearchResult[];
+    continuation?: boolean;
+    estimatedResults?: number;
+    error?: string;
+}
+
+// Search Channels
+export interface SearchChannelsRequest {
+    query: string;
+}
+
+export interface SearchChannelsResponse {
+    channels?: YouTubeChannelSearchResult[];
+    error?: string;
+}
+
+// Get Video Details
+export interface GetVideoDetailsRequest {
+    videoId: string;
+}
+
+export interface GetVideoDetailsResponse {
+    video?: YouTubeVideoDetails;
+    error?: string;
+}
+
+// Channel video filters (client-safe, no server-only dependencies)
+export interface ChannelVideoFilters {
+    sort_by?: string;
+    upload_date?: string;
+    type?: string;
+    duration?: string;
+    features?: string[];
+    minViews?: number;
+}
+
+// Get Channel Videos
+export interface GetChannelVideosRequest {
+    channelId: string;
+    filters?: ChannelVideoFilters;
+    pageNumber?: number;
+}
+
+export interface GetChannelVideosResponse {
+    data?: {
+        videos: YouTubeVideoSearchResult[];
+        channelInfo: YouTubeChannelInfo;
+        continuation: boolean;
+        estimatedResults: number;
+    };
+    error?: string;
+}
+
+// Get Transcript
+export interface GetTranscriptRequest {
+    videoId: string;
+    overlapOffsetSeconds?: number;
+}
+
+export interface GetTranscriptResponse {
+    result?: CombinedTranscriptChapters;
+    error?: string;
+}
+
+export interface ApiHandlerContext {
+    userId?: string;
+}
