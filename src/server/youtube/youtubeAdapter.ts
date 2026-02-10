@@ -1,6 +1,7 @@
 import { Innertube, YTNodes } from 'youtubei.js';
 import type { Types } from 'youtubei.js';
 import type { CacheResult } from '@/common/cache/types';
+import { parseRelativeTimeToSeconds } from '@/common/utils/parseRelativeTime';
 import type {
   YouTubeApiAdapter,
   YouTubeSearchParams,
@@ -319,7 +320,7 @@ export const createYouTubeAdapter = (): YouTubeApiAdapter => {
             const sortedVideos = videos.sort((a, b) => {
               const sortBy = filters?.sort_by || 'upload_date';
               if (sortBy === 'upload_date') {
-                return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+                return parseRelativeTimeToSeconds(a.publishedAt) - parseRelativeTimeToSeconds(b.publishedAt);
               }
               if (sortBy === 'view_count') {
                 const viewCountA = Number(a.viewCount.replace(/,/g, '').replace(' views', ''));
