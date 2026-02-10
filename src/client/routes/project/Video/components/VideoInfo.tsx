@@ -1,3 +1,4 @@
+import { useRouter } from '@/client/features';
 import type { YouTubeVideoDetails } from '@/apis/project/youtube/types';
 
 function formatCount(count: string): string {
@@ -13,6 +14,12 @@ interface VideoInfoProps {
 }
 
 export const VideoInfo = ({ video }: VideoInfoProps) => {
+    const { navigate } = useRouter();
+
+    const handleChannelClick = () => {
+        navigate(`/channel/${video.channelId}`);
+    };
+
     return (
         <div className="mt-3">
             <h1 className="text-lg font-semibold text-foreground leading-snug">
@@ -23,11 +30,17 @@ export const VideoInfo = ({ video }: VideoInfoProps) => {
                     <img
                         src={video.channelImage}
                         alt={video.channelTitle}
-                        className="w-9 h-9 rounded-full"
+                        className="w-9 h-9 rounded-full cursor-pointer hover:opacity-80"
+                        onClick={handleChannelClick}
                     />
                 )}
                 <div>
-                    <p className="text-sm font-medium text-foreground">{video.channelTitle}</p>
+                    <p
+                        className="text-sm font-medium text-foreground cursor-pointer hover:underline"
+                        onClick={handleChannelClick}
+                    >
+                        {video.channelTitle}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                         {formatCount(video.viewCount)} views
                         {video.likeCount && ` · ${formatCount(video.likeCount)} likes`}

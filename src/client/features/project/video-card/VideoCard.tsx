@@ -11,7 +11,6 @@ function formatViewCount(viewCount: string): string {
 
 function formatPublishedDate(dateStr: string): string {
     if (!dateStr) return '';
-    // If it's already a relative string like "2 months ago", return as-is
     if (dateStr.includes('ago')) return dateStr;
     try {
         const date = new Date(dateStr);
@@ -27,6 +26,11 @@ interface VideoCardProps {
 
 export const VideoCard = ({ video }: VideoCardProps) => {
     const { navigate } = useRouter();
+
+    const handleChannelClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        navigate(`/channel/${video.channelId}`);
+    };
 
     return (
         <div
@@ -51,15 +55,19 @@ export const VideoCard = ({ video }: VideoCardProps) => {
                     <img
                         src={video.channelThumbnailUrl}
                         alt={video.channelTitle}
-                        className="w-8 h-8 rounded-full flex-shrink-0 mt-0.5"
+                        className="w-8 h-8 rounded-full flex-shrink-0 mt-0.5 cursor-pointer hover:opacity-80"
                         loading="lazy"
+                        onClick={handleChannelClick}
                     />
                 )}
                 <div className="min-w-0">
                     <h3 className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
                         {video.title}
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p
+                        className="text-xs text-muted-foreground mt-1 cursor-pointer hover:text-foreground"
+                        onClick={handleChannelClick}
+                    >
                         {video.channelTitle}
                     </p>
                     <p className="text-xs text-muted-foreground">

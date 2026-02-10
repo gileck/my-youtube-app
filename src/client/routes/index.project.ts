@@ -21,6 +21,7 @@ import { Todos } from './project/Todos';
 import { SingleTodo } from './project/SingleTodo';
 import { Dashboard } from './project/Dashboard';
 import { Video } from './project/Video';
+import { Channel } from './project/Channel';
 import { CacheStats } from './project/CacheStats';
 
 /**
@@ -34,6 +35,7 @@ export const projectRoutes: Routes = {
   '/todos': Todos,
   '/todos/:todoId': SingleTodo,
   '/video/:videoId': Video,
+  '/channel/:channelId': Channel,
 
   // Admin routes
   '/admin/dashboard': Dashboard,

@@ -4,9 +4,10 @@ import { Button } from '@/client/components/template/ui/button';
 import { LinearProgress } from '@/client/components/template/ui/linear-progress';
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { Search as SearchIcon } from 'lucide-react';
+import { VideoCard } from '@/client/features/project/video-card';
 import { useSearchStore } from './store';
 import { useSearchVideos } from './hooks';
-import { VideoCard, SearchFilters } from './components';
+import { SearchFilters } from './components';
 
 export const Search = () => {
     const query = useSearchStore((s) => s.query);
