@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { getChannelVideos, searchVideos } from '@/apis/project/youtube/client';
 import { useQueryDefaults } from '@/client/query/defaults';
@@ -22,7 +21,7 @@ export function useVideoFeed(filters: FeedFilters) {
     const uploadDateParam = filters.uploadDate !== 'all' ? filters.uploadDate : undefined;
 
     const channelQueryConfigs = channels.map((channel) => ({
-        queryKey: ['youtube', 'feed', 'channel', channel.id, uploadDateParam],
+        queryKey: ['youtube', 'feed', 'channel', channel.id, uploadDateParam] as const,
         queryFn: async () => {
             try {
                 const response = await getChannelVideos({
@@ -44,7 +43,7 @@ export function useVideoFeed(filters: FeedFilters) {
     }));
 
     const searchQueryConfigs = searchQueries.map((query) => ({
-        queryKey: ['youtube', 'feed', 'search', query, uploadDateParam],
+        queryKey: ['youtube', 'feed', 'search', query, uploadDateParam] as const,
         queryFn: async () => {
             try {
                 const response = await searchVideos({
@@ -68,32 +67,30 @@ export function useVideoFeed(filters: FeedFilters) {
         ...queryDefaults,
     }));
 
-    const allQueryConfigs = [...channelQueryConfigs, ...searchQueryConfigs];
-
-    const results = useQueries({ queries: allQueryConfigs });
-
-    const isLoading = results.some((r) => r.isLoading && !r.data);
-    const hasError = results.some((r) => r.error);
-    const firstError = results.find((r) => r.error)?.error ?? null;
-
-    const dataKey = results.map((r) => r.dataUpdatedAt).join(',');
-
-    const videos = useMemo((): YouTubeVideoSearchResult[] => {
-        const allVideos: YouTubeVideoSearchResult[] = [];
-        for (const result of results) {
-            if (result.data) {
-                allVideos.push(...(result.data as YouTubeVideoSearchResult[]));
+    const { videos, isLoading, hasError, error } = useQueries({
+        queries: [...channelQueryConfigs, ...searchQueryConfigs],
+        combine: (results) => {
+            const allVideos: YouTubeVideoSearchResult[] = [];
+            for (const result of results) {
+                if (result.data) {
+                    allVideos.push(...result.data);
+                }
             }
-        }
-        const deduped = deduplicateVideos(allVideos);
-        const filtered = filterVideos(deduped, {
-            duration: filters.duration,
-            minViews: filters.minViews,
-        });
-        return sortVideos(filtered, filters.sortBy);
-    }, [dataKey, filters.sortBy, filters.duration, filters.minViews]);
+            const deduped = deduplicateVideos(allVideos);
+            const filtered = filterVideos(deduped, {
+                duration: filters.duration,
+                minViews: filters.minViews,
+            });
+            return {
+                videos: sortVideos(filtered, filters.sortBy),
+                isLoading: results.some((r) => r.isLoading && !r.data),
+                hasError: results.some((r) => r.error),
+                error: results.find((r) => r.error)?.error ?? null,
+            };
+        },
+    });
 
     const hasSubscriptions = channels.length > 0 || searchQueries.length > 0;
 
-    return { videos, isLoading, hasError, error: firstError, hasSubscriptions };
+    return { videos, isLoading, hasError, error, hasSubscriptions };
 }
