@@ -4,9 +4,16 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/client/components/template/ui/select';
 import { SlidersHorizontal } from 'lucide-react';
+import { ViewModeToggle } from '@/client/features/project/video-card';
+import type { ViewMode } from '@/client/features/project/video-card';
 import { useSearchStore } from '../store';
 
-export const SearchFilters = () => {
+interface SearchFiltersProps {
+    viewMode: ViewMode;
+    onViewModeChange: (mode: ViewMode) => void;
+}
+
+export const SearchFilters = ({ viewMode, onViewModeChange }: SearchFiltersProps) => {
     const filtersExpanded = useSearchStore((s) => s.filtersExpanded);
     const setFiltersExpanded = useSearchStore((s) => s.setFiltersExpanded);
     const sortBy = useSearchStore((s) => s.sortBy);
@@ -20,15 +27,18 @@ export const SearchFilters = () => {
 
     return (
         <div>
-            <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setFiltersExpanded(!filtersExpanded)}
-                className="gap-1.5 text-muted-foreground"
-            >
-                <SlidersHorizontal size={16} />
-                Filters
-            </Button>
+            <div className="flex items-center justify-between">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFiltersExpanded(!filtersExpanded)}
+                    className="gap-1.5 text-muted-foreground"
+                >
+                    <SlidersHorizontal size={16} />
+                    Filters
+                </Button>
+                <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+            </div>
 
             {filtersExpanded && (
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">

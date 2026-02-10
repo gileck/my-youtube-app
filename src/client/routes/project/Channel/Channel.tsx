@@ -5,6 +5,7 @@ import { LinearProgress } from '@/client/components/template/ui/linear-progress'
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { ArrowLeft } from 'lucide-react';
 import { VideoGrid } from '@/client/features/project/video-card';
+import type { ViewMode } from '@/client/features/project/video-card';
 import { useChannelVideos } from './hooks';
 import { ChannelHeader, ChannelFilters } from './components';
 import type { ChannelFilterValues } from './components';
@@ -27,6 +28,8 @@ export const Channel = () => {
     const [filterValues, setFilterValues] = useState<ChannelFilterValues>(DEFAULT_FILTERS);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
     const [filtersExpanded, setFiltersExpanded] = useState(false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle for view mode
+    const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
     const apiFilters = useMemo((): ChannelVideoFilters | undefined => {
         const f: ChannelVideoFilters = {};
@@ -68,11 +71,13 @@ export const Channel = () => {
                 <ChannelFilters
                     filters={filterValues}
                     filtersExpanded={filtersExpanded}
+                    viewMode={viewMode}
                     onFiltersExpandedChange={setFiltersExpanded}
                     onSortByChange={(sortBy) => { setFilterValues((f) => ({ ...f, sortBy })); setPageNumber(1); }}
                     onUploadDateChange={(uploadDate) => { setFilterValues((f) => ({ ...f, uploadDate })); setPageNumber(1); }}
                     onDurationChange={(duration) => { setFilterValues((f) => ({ ...f, duration })); setPageNumber(1); }}
                     onMinViewsChange={(minViews) => { setFilterValues((f) => ({ ...f, minViews })); setPageNumber(1); }}
+                    onViewModeChange={setViewMode}
                 />
             </div>
 
@@ -87,6 +92,7 @@ export const Channel = () => {
             {videos && videos.length > 0 && (
                 <VideoGrid
                     videos={videos}
+                    viewMode={viewMode}
                     continuation={data?.data?.continuation}
                     isLoading={isLoading}
                     onLoadMore={() => setPageNumber((p) => p + 1)}

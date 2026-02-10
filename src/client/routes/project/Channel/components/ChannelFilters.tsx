@@ -4,6 +4,8 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/client/components/template/ui/select';
 import { SlidersHorizontal } from 'lucide-react';
+import { ViewModeToggle } from '@/client/features/project/video-card';
+import type { ViewMode } from '@/client/features/project/video-card';
 
 export interface ChannelFilterValues {
     sortBy: string;
@@ -15,33 +17,40 @@ export interface ChannelFilterValues {
 interface ChannelFiltersProps {
     filters: ChannelFilterValues;
     filtersExpanded: boolean;
+    viewMode: ViewMode;
     onFiltersExpandedChange: (expanded: boolean) => void;
     onSortByChange: (sortBy: string) => void;
     onUploadDateChange: (uploadDate: string) => void;
     onDurationChange: (duration: string) => void;
     onMinViewsChange: (minViews: number) => void;
+    onViewModeChange: (mode: ViewMode) => void;
 }
 
 export const ChannelFilters = ({
     filters,
     filtersExpanded,
+    viewMode,
     onFiltersExpandedChange,
     onSortByChange,
     onUploadDateChange,
     onDurationChange,
     onMinViewsChange,
+    onViewModeChange,
 }: ChannelFiltersProps) => {
     return (
         <div>
-            <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onFiltersExpandedChange(!filtersExpanded)}
-                className="gap-1.5 text-muted-foreground"
-            >
-                <SlidersHorizontal size={16} />
-                Filters
-            </Button>
+            <div className="flex items-center justify-between">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onFiltersExpandedChange(!filtersExpanded)}
+                    className="gap-1.5 text-muted-foreground"
+                >
+                    <SlidersHorizontal size={16} />
+                    Filters
+                </Button>
+                <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+            </div>
 
             {filtersExpanded && (
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">

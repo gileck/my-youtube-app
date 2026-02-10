@@ -6,6 +6,7 @@ import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { useRouter } from '@/client/features';
 import { Search as SearchIcon } from 'lucide-react';
 import { VideoGrid } from '@/client/features/project/video-card';
+import type { ViewMode } from '@/client/features/project/video-card';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
 import { useSearchStore } from './store';
 import { useSearchVideos, useSearchChannels } from './hooks';
@@ -37,6 +38,8 @@ export const Search = () => {
     const [pageNumber, setPageNumber] = useState(1);
     // eslint-disable-next-line state-management/prefer-state-architecture -- accumulated results for load-more pagination
     const [accumulatedVideos, setAccumulatedVideos] = useState<YouTubeVideoSearchResult[]>([]);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle for view mode
+    const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
     // Sync query from URL param
     useEffect(() => {
@@ -156,7 +159,7 @@ export const Search = () => {
             {/* Filters (videos only) */}
             {searchType === 'videos' && (
                 <div className="mt-2">
-                    <SearchFilters />
+                    <SearchFilters viewMode={viewMode} onViewModeChange={setViewMode} />
                 </div>
             )}
 
@@ -208,6 +211,7 @@ export const Search = () => {
                 <>
                     <VideoGrid
                         videos={videos}
+                        viewMode={viewMode}
                         continuation={videoData?.continuation}
                         isLoading={isLoading}
                         onLoadMore={() => setPageNumber((p) => p + 1)}
