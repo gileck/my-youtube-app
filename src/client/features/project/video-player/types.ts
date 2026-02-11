@@ -20,6 +20,8 @@ export interface YTPlayerOptions {
 export interface YTPlayerInstance {
     getCurrentTime(): number;
     seekTo(seconds: number, allowSeekAhead: boolean): void;
+    playVideo(): void;
+    pauseVideo(): void;
     destroy(): void;
     getPlayerState(): number;
 }

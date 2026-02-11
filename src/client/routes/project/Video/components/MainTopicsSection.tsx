@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/client/components/template/ui/button';
@@ -23,14 +23,23 @@ interface SubtopicItemProps {
     chapterSegments: TranscriptSegment[] | undefined;
     isActive: boolean;
     onSeek: (seconds: number) => void;
+    preload?: boolean;
 }
 
-const SubtopicItem = ({ kp, nextTimestamp, videoId, videoTitle, chapterSegments, isActive, onSeek }: SubtopicItemProps) => {
+const SubtopicItem = ({ kp, nextTimestamp, videoId, videoTitle, chapterSegments, isActive, onSeek, preload }: SubtopicItemProps) => {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
     const [showTakeaways, setShowTakeaways] = useState(false);
     const { data, isLoading, isExpanded, expand } = useSubtopicExpansion(
         videoId, kp.title || kp.text, chapterSegments, kp.timestamp, nextTimestamp, videoTitle
     );
+
+    // Auto-expand when preload becomes true (triggers React Query fetch for caching)
+    useEffect(() => {
+        if (preload && !isExpanded) {
+            expand();
+            setShowTakeaways(true);
+        }
+    }, [preload, isExpanded, expand]);
 
     const handleToggle = () => {
         if (!isExpanded) {
@@ -42,11 +51,11 @@ const SubtopicItem = ({ kp, nextTimestamp, videoId, videoTitle, chapterSegments,
     };
 
     return (
-        <div>
+        <div className={`transition-colors ${isActive ? 'border-l-2 border-primary pl-2' : ''}`}>
             <div className="flex items-start gap-2 text-sm">
                 <button
                     onClick={() => onSeek(kp.timestamp)}
-                    className={`flex shrink-0 items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] hover:text-foreground mt-0.5 ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
+                    className="flex shrink-0 items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground mt-0.5"
                 >
                     <Clock size={10} />
                     {formatTimestamp(kp.timestamp)}
@@ -56,8 +65,8 @@ const SubtopicItem = ({ kp, nextTimestamp, videoId, videoTitle, chapterSegments,
                         {showTakeaways && isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                     </span>
                     <div className="min-w-0">
-                        {kp.title && <span className={`font-medium ${isActive ? 'text-primary' : 'text-foreground'}`}>{kp.title}: </span>}
-                        <span className={isActive ? 'text-primary' : 'text-muted-foreground'}>{kp.text}</span>
+                        {kp.title && <span className="font-medium text-foreground">{kp.title}: </span>}
+                        <span className="text-muted-foreground">{kp.text}</span>
                     </div>
                 </button>
             </div>
@@ -103,7 +112,7 @@ const TopicItem = ({ topic, videoId, segments, videoTitle, chapters, isActive }:
     const seekTo = useSeekTo();
 
     return (
-        <div className={`rounded-lg p-3 transition-colors ${isActive ? 'ring-1 ring-primary/50 bg-primary/5' : 'bg-muted/30'}`}>
+        <div className={`rounded-lg p-3 transition-colors bg-muted/30 ${isActive ? 'border-l-2 border-primary' : ''}`}>
             <button
                 onClick={() => setIsOpen(prev => !prev)}
                 className="flex w-full items-start gap-2 text-left"
@@ -128,18 +137,22 @@ const TopicItem = ({ topic, videoId, segments, videoTitle, chapters, isActive }:
 
             {isOpen && (
                 <div className="mt-2 ml-5 space-y-1">
-                    {hasKeyPoints && topic.keyPoints.map((kp, i) => (
-                        <SubtopicItem
-                            key={i}
-                            kp={kp}
-                            nextTimestamp={topic.keyPoints[i + 1]?.timestamp ?? (matchingChapter ? matchingChapter.endTime : kp.timestamp + 300)}
-                            videoId={videoId}
-                            videoTitle={videoTitle}
-                            chapterSegments={matchingChapter?.segments}
-                            isActive={activeKeyPoint === kp}
-                            onSeek={seekTo}
-                        />
-                    ))}
+                    {hasKeyPoints && (() => {
+                        const activeIdx = topic.keyPoints.findIndex(kp => kp === activeKeyPoint);
+                        return topic.keyPoints.map((kp, i) => (
+                            <SubtopicItem
+                                key={i}
+                                kp={kp}
+                                nextTimestamp={topic.keyPoints[i + 1]?.timestamp ?? (matchingChapter ? matchingChapter.endTime : kp.timestamp + 300)}
+                                videoId={videoId}
+                                videoTitle={videoTitle}
+                                chapterSegments={matchingChapter?.segments}
+                                isActive={activeKeyPoint === kp}
+                                onSeek={seekTo}
+                                preload={activeIdx >= 0 && (i === activeIdx || i === activeIdx + 1)}
+                            />
+                        ));
+                    })()}
 
                     {!isExpanded && (
                         <Button variant="ghost" size="sm" onClick={expand} className="text-xs h-6 px-2 mt-1">

@@ -54,11 +54,11 @@ export const ChaptersSection = ({ chapters }: ChaptersSectionProps) => {
             <CollapsibleContent>
                 <div className="mt-2 max-h-96 overflow-y-auto rounded-lg bg-muted/50 p-3 space-y-3">
                     {chapters.map((chapter, i) => (
-                        <div key={i} className={`rounded px-2 py-1 -mx-2 transition-colors ${activeChapter === chapter ? 'bg-primary/10' : ''}`}>
+                        <div key={i} className={`px-2 py-1 -mx-2 transition-colors ${activeChapter === chapter ? 'border-l-2 border-primary' : ''}`}>
                             <div className="flex items-baseline gap-2">
                                 <button
                                     onClick={() => seekTo(chapter.startTime)}
-                                    className={`text-xs font-mono flex-shrink-0 hover:text-foreground ${activeChapter === chapter ? 'text-primary' : 'text-muted-foreground'}`}
+                                    className="text-xs font-mono flex-shrink-0 text-muted-foreground hover:text-foreground"
                                 >
                                     {formatTime(chapter.startTime)}
                                 </button>
