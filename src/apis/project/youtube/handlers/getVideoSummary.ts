@@ -250,38 +250,51 @@ Be thorough and specific, referencing the actual content from the video.`;
             const { data, isFromCache } = await youtubeCache.withCache(
                 async () => {
                     const chapterResponses = await Promise.all(
-                        chapters.map(ch =>
-                            adapter.processPromptToText(
+                        chapters.map((ch, idx) => {
+                            const startSec = Number(ch.startTime) || 0;
+                            const endSec = idx + 1 < chapters.length
+                                ? Number(chapters[idx + 1].startTime) || 0
+                                : startSec + 3600;
+                            return adapter.processPromptToText(
                                 `You are a helpful assistant that analyzes YouTube video chapters.
 
 Chapter: "${ch.title}"
-Chapter starts at: ${ch.startTime ?? 0} seconds
+Chapter time range: ${startSec} to ${endSec} seconds
 
 Content (includes [M:SS] timestamp markers):
 ${ch.content}
+
+IMPORTANT: To convert [M:SS] markers to seconds, use: minutes * 60 + seconds. For example [5:30] = 5*60+30 = 330 seconds. All timestamps MUST be within the chapter range (${startSec}-${endSec} seconds). Do NOT use timestamps outside this range.
 
 Provide:
 1. description: A 1-2 sentence description of what is discussed in this chapter
 2. keyPoints: An array of 2-10 key points (more for longer chapters). Each has:
    - title: A short title (3-6 words)
    - text: A single concise sentence describing what is covered
-   - timestamp: Time in seconds based on the [M:SS] markers
+   - timestamp: Time in seconds (converted from [M:SS] markers), must be between ${startSec} and ${endSec}
 
 Return ONLY a JSON object (not array): {"description": "...", "keyPoints": [{"title": "Short Title", "text": "Description of what is covered.", "timestamp": 0}]}`,
                                 'getVideoSummary'
-                            )
-                        )
+                            );
+                        })
                     );
 
                     const totalCost = chapterResponses.reduce((sum, r) => sum + (r.cost?.totalCost ?? 0), 0);
 
                     const topics: VideoTopic[] = chapterResponses.map((r, i) => {
+                        const startSec = Number(chapters[i].startTime) || 0;
+                        const endSec = i + 1 < chapters.length
+                            ? Number(chapters[i + 1].startTime) || 0
+                            : startSec + 3600;
                         const parsed = parseChapterTopicJson(r.result);
                         return {
                             title: chapters[i].title,
-                            timestamp: Number(chapters[i].startTime) || 0,
+                            timestamp: startSec,
                             description: parsed.description,
-                            keyPoints: parsed.keyPoints,
+                            keyPoints: parsed.keyPoints.map(kp => ({
+                                ...kp,
+                                timestamp: Math.min(Math.max(kp.timestamp, startSec), endSec),
+                            })),
                         };
                     });
 
