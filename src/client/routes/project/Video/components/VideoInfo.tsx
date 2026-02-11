@@ -1,6 +1,9 @@
 import { useRouter } from '@/client/features';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Bookmark, BookmarkCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { Button } from '@/client/components/template/ui/button';
 import type { YouTubeVideoDetails } from '@/apis/project/youtube/types';
+import { useBookmarkToggle } from '@/client/features/project/bookmarks';
+import { useVideoUIToggle } from '@/client/features/project/video-ui-state';
 
 function formatCount(count: string): string {
     const num = parseInt(count, 10);
@@ -16,6 +19,8 @@ interface VideoInfoProps {
 
 export const VideoInfo = ({ video }: VideoInfoProps) => {
     const { navigate } = useRouter();
+    const { isBookmarked, toggle: toggleBookmark } = useBookmarkToggle(video);
+    const [descExpanded, setDescExpanded] = useVideoUIToggle(video.id, 'descExpanded', false);
 
     const handleChannelClick = () => {
         navigate(`/channel/${video.channelId}`);
@@ -23,19 +28,10 @@ export const VideoInfo = ({ video }: VideoInfoProps) => {
 
     return (
         <div className="mt-3">
-            <div className="flex items-start gap-2">
-                <h1 className="text-lg font-semibold text-foreground leading-snug flex-1">
-                    {video.title}
-                </h1>
-                <a
-                    href={`https://www.youtube.com/watch?v=${video.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-shrink-0 mt-1 text-muted-foreground hover:text-foreground"
-                >
-                    <ExternalLink size={16} />
-                </a>
-            </div>
+            <h1 className="text-lg font-semibold text-foreground leading-snug">
+                {video.title}
+            </h1>
+
             <div className="mt-2 flex items-center gap-3">
                 {video.channelImage && (
                     <img
@@ -59,10 +55,51 @@ export const VideoInfo = ({ video }: VideoInfoProps) => {
                     </p>
                 </div>
             </div>
+
+            <div className="mt-3 flex items-center gap-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleBookmark}
+                    className="gap-1.5 rounded-full"
+                >
+                    {isBookmarked ? (
+                        <BookmarkCheck size={14} className="text-primary" />
+                    ) : (
+                        <Bookmark size={14} />
+                    )}
+                    {isBookmarked ? 'Bookmarked' : 'Bookmark'}
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 rounded-full"
+                    asChild
+                >
+                    <a
+                        href={`https://www.youtube.com/watch?v=${video.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <ExternalLink size={14} />
+                        YouTube
+                    </a>
+                </Button>
+            </div>
+
             {video.description && (
-                <p className="mt-3 text-sm text-muted-foreground whitespace-pre-line line-clamp-3">
-                    {video.description}
-                </p>
+                <button
+                    onClick={() => setDescExpanded(!descExpanded)}
+                    className="mt-3 w-full text-left rounded-lg bg-muted/30 p-3"
+                >
+                    <p className={`text-sm text-muted-foreground whitespace-pre-line ${descExpanded ? '' : 'line-clamp-3'}`}>
+                        {video.description}
+                    </p>
+                    <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground/70">
+                        {descExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        {descExpanded ? 'Show less' : 'Show more'}
+                    </div>
+                </button>
             )}
         </div>
     );

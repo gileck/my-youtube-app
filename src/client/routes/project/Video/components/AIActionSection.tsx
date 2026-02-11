@@ -84,36 +84,38 @@ export const AIActionSection = ({
 
     return (
         <Collapsible open={open} onOpenChange={setOpen}>
-            <div className="flex items-center justify-between">
-                <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-1.5 px-2">
-                        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                        {icon}
-                        {title}
-                    </Button>
-                </CollapsibleTrigger>
-                <div className="flex items-center gap-2">
-                    {modelName && (
-                        <span className="text-xs text-muted-foreground">{modelName}</span>
-                    )}
-                    {cost && (
-                        <span className="text-xs text-muted-foreground">${cost.totalCost.toFixed(4)}</span>
-                    )}
-                    {!loading && summary && (
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                            {isFromCache ? 'Cached' : 'Fresh'}
-                        </span>
-                    )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={onRegenerate}
-                        disabled={loading}
-                        className="h-7 w-7 p-0"
-                    >
-                        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                    </Button>
+            <div>
+                <div className="flex items-center justify-between">
+                    <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm" className="gap-1.5 px-2">
+                            {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            {icon}
+                            {title}
+                        </Button>
+                    </CollapsibleTrigger>
+                    <div className="flex items-center gap-1.5">
+                        {!loading && summary && (
+                            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {isFromCache ? 'Cached' : 'Fresh'}
+                            </span>
+                        )}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onRegenerate}
+                            disabled={loading}
+                            className="h-7 w-7 p-0"
+                        >
+                            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                        </Button>
+                    </div>
                 </div>
+                {(modelName || cost) && (
+                    <div className="flex items-center gap-2 pl-8 text-xs text-muted-foreground">
+                        {modelName && <span>{modelName}</span>}
+                        {cost && <span>${cost.totalCost.toFixed(4)}</span>}
+                    </div>
+                )}
             </div>
             <CollapsibleContent>
                 <div className="mt-2 space-y-2">

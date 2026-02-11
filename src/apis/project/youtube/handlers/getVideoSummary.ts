@@ -256,7 +256,8 @@ Example format:
 - **Takeaway Title**: Description of what was discussed or explained about this point.
 - **Another Point**: Further detail or example from the content.
 
-Be specific and reference actual content. Do not add information not present in the content above.`;
+Be specific and reference actual content. Do not add information not present in the content above.
+If the content is too brief or lacks enough substance, return just 1-2 takeaways covering what is there. Never return meta-commentary about the content being too short.`;
                     const response = await adapter.processPromptToText(prompt, 'getVideoSummary');
                     return { summary: response.result, modelId, cost: response.cost };
                 },
