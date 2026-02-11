@@ -9,6 +9,7 @@ const SINGLE_PASS_CHAR_LIMIT = 50000;
 function parseKeyPoints(raw: unknown): TopicKeyPoint[] {
     if (!Array.isArray(raw)) return [];
     return raw.map(kp => ({
+        title: String(kp.title || ''),
         text: String(kp.text || ''),
         timestamp: Number(kp.timestamp) || 0,
     }));
@@ -137,11 +138,12 @@ Identify the main topics discussed in this video. For each topic provide:
 - description: A 1-2 sentence description of what is discussed
 - timestamp: The time in seconds where this topic begins, based on the [M:SS] markers above. Use the nearest preceding marker to determine the timestamp.
 - keyPoints: An array of 2-10 key points for this topic (more for longer topics). Each key point has:
-  - text: A single concise sentence summarizing the point
+  - title: A short title (3-6 words)
+  - text: A single concise sentence describing what is covered
   - timestamp: The time in seconds where this point is discussed, based on the [M:SS] markers
 
 Return ONLY a JSON array, no other text. Example:
-[{"title": "Introduction to the Subject", "description": "The host introduces the main theme and sets context.", "timestamp": 0, "keyPoints": [{"text": "The presenter outlines three main goals for the discussion.", "timestamp": 15}, {"text": "Background context is provided on why this topic matters.", "timestamp": 45}]}]`,
+[{"title": "Introduction to the Subject", "description": "The host introduces the main theme and sets context.", "timestamp": 0, "keyPoints": [{"title": "Three Main Goals", "text": "The presenter outlines three main goals for the discussion.", "timestamp": 15}, {"title": "Why This Matters", "text": "Background context is provided on why this topic matters.", "timestamp": 45}]}]`,
         chapter: (chapterTitle, content) =>
             `You are a helpful assistant that identifies the main topics discussed in YouTube videos.
 
@@ -156,11 +158,12 @@ For each topic provide:
 - description: A 1-2 sentence description of what is discussed
 - timestamp: The time in seconds where this topic begins, based on the [M:SS] markers in the content
 - keyPoints: An array of 2-10 key points for this topic (more for longer topics). Each key point has:
-  - text: A single concise sentence summarizing the point
+  - title: A short title (3-6 words)
+  - text: A single concise sentence describing what is covered
   - timestamp: The time in seconds where this point is discussed
 
 Return ONLY a JSON array, no other text. Example:
-[{"title": "Topic Name", "description": "Brief description.", "timestamp": 120, "keyPoints": [{"text": "Key insight from this section.", "timestamp": 130}]}]`,
+[{"title": "Topic Name", "description": "Brief description.", "timestamp": 120, "keyPoints": [{"title": "Key Insight", "text": "Key insight from this section.", "timestamp": 130}]}]`,
         synthesis: (videoTitle, chapterResults) => {
             const chaptersText = chapterResults
                 .map(c => `Chapter: ${c.title}\nTopics: ${c.summary}`)
@@ -178,7 +181,8 @@ For each topic provide:
 - description: A 1-2 sentence description of what is discussed
 - timestamp: The time in seconds where this topic begins
 - keyPoints: An array of 2-10 key points for this topic (more for longer topics). Each key point has:
-  - text: A single concise sentence summarizing the point
+  - title: A short title (3-6 words)
+  - text: A single concise sentence describing what is covered
   - timestamp: The time in seconds where this point is discussed
 
 Return ONLY a JSON array, no other text.`;
@@ -259,10 +263,11 @@ ${ch.content}
 Provide:
 1. description: A 1-2 sentence description of what is discussed in this chapter
 2. keyPoints: An array of 2-10 key points (more for longer chapters). Each has:
-   - text: A single concise sentence
+   - title: A short title (3-6 words)
+   - text: A single concise sentence describing what is covered
    - timestamp: Time in seconds based on the [M:SS] markers
 
-Return ONLY a JSON object (not array): {"description": "...", "keyPoints": [{"text": "...", "timestamp": 0}]}`,
+Return ONLY a JSON object (not array): {"description": "...", "keyPoints": [{"title": "Short Title", "text": "Description of what is covered.", "timestamp": 0}]}`,
                                 'getVideoSummary'
                             )
                         )

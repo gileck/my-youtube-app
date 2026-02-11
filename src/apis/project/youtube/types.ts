@@ -126,6 +126,7 @@ export interface ChapterSummary {
 }
 
 export interface TopicKeyPoint {
+    title: string;
     text: string;
     timestamp: number;
 }

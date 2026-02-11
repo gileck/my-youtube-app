@@ -72,7 +72,10 @@ const TopicItem = ({ topic, videoId, segments, videoTitle }: TopicItemProps) => 
                                 <Clock size={10} />
                                 {formatTimestamp(kp.timestamp)}
                             </button>
-                            <span className="text-muted-foreground">{kp.text}</span>
+                            <div className="min-w-0">
+                                {kp.title && <span className="font-medium text-foreground">{kp.title}: </span>}
+                                <span className="text-muted-foreground">{kp.text}</span>
+                            </div>
                         </div>
                     ))}
 
