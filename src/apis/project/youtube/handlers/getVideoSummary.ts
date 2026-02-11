@@ -234,6 +234,38 @@ Be thorough and specific, referencing the actual content from the video.`;
             return { summary: data.summary, modelId: data.modelId, cost: data.cost, _isFromCache: isFromCache };
         }
 
+        // subtopic-expand: short content chunk → key takeaways
+        if (actionType === 'subtopic-expand') {
+            if (!request.topicTitle) {
+                return { error: "topicTitle is required for subtopic-expand" };
+            }
+            const { data, isFromCache } = await youtubeCache.withCache(
+                async () => {
+                    const prompt = `You are a helpful assistant that extracts key takeaways from YouTube video content.
+
+Subtopic: "${request.topicTitle}"
+
+Content:
+${request.transcript}
+
+Provide 3-7 key takeaways from this subtopic. Format as a markdown list where each takeaway has:
+- A bold title (3-6 words)
+- 1-2 sentences describing the insight, detail, or example mentioned
+
+Example format:
+- **Takeaway Title**: Description of what was discussed or explained about this point.
+- **Another Point**: Further detail or example from the content.
+
+Be specific and reference actual content. Do not add information not present in the content above.`;
+                    const response = await adapter.processPromptToText(prompt, 'getVideoSummary');
+                    return { summary: response.result, modelId, cost: response.cost };
+                },
+                { key: 'video-subtopic-expand', params: { videoId: request.videoId, topicTitle: request.topicTitle } },
+                { ttl: YOUTUBE_CACHE_TTL, bypassCache: request.bypassCache }
+            );
+            return { summary: data.summary, modelId: data.modelId, cost: data.cost, _isFromCache: isFromCache };
+        }
+
         const prompts = ACTION_PROMPTS[actionType];
         if (!prompts) {
             return { error: `Unknown action type: ${actionType}` };

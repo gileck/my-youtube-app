@@ -184,3 +184,43 @@ export function useTopicExpansion(videoId: string, topicTitle: string, segments:
 
     return { ...query, isExpanded: isEnabled, expand };
 }
+
+export function useSubtopicExpansion(videoId: string, subtopicTitle: string, chapterSegments: TranscriptSegment[] | undefined, startTime: number, endTime: number, videoTitle: string | undefined) {
+    const queryDefaults = useQueryDefaults();
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral trigger flag
+    const [isEnabled, setIsEnabled] = useState(false);
+
+    const transcript = useMemo(() => {
+        if (!chapterSegments) return '';
+        return chapterSegments
+            .filter(s => s.start_seconds >= startTime && s.start_seconds < endTime)
+            .map(s => s.text)
+            .join(' ');
+    }, [chapterSegments, startTime, endTime]);
+
+    const query = useQuery({
+        queryKey: ['youtube', 'subtopic-expand', videoId, subtopicTitle],
+        queryFn: async (): Promise<GetVideoSummaryResponse> => {
+            try {
+                const response = await getVideoSummary({
+                    videoId, transcript, title: videoTitle ?? '',
+                    actionType: 'subtopic-expand', topicTitle: subtopicTitle,
+                });
+                if (response.data?.error) {
+                    throw new Error(response.data.error);
+                }
+                recordApiCall('getVideoSummary', response.data?._isFromCache ?? false);
+                return response.data;
+            } catch (error) {
+                recordApiError('getVideoSummary', false);
+                throw error;
+            }
+        },
+        enabled: isEnabled && !!videoId && !!transcript,
+        ...queryDefaults,
+    });
+
+    const expand = useCallback(() => { setIsEnabled(true); }, []);
+
+    return { ...query, isExpanded: isEnabled, expand };
+}

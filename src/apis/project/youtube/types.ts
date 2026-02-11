@@ -107,7 +107,7 @@ export interface GetTranscriptResponse {
 }
 
 // AI Action Types
-export type AIActionType = 'summary' | 'keypoints' | 'topics' | 'topic-expand';
+export type AIActionType = 'summary' | 'keypoints' | 'topics' | 'topic-expand' | 'subtopic-expand';
 
 // Get Video Summary
 export interface GetVideoSummaryRequest {

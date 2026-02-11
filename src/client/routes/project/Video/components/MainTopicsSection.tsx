@@ -5,8 +5,8 @@ import { Button } from '@/client/components/template/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/client/components/template/ui/collapsible';
 import { ChevronDown, ChevronRight, RefreshCw, LayoutList, Clock, Loader2 } from 'lucide-react';
 import { getModelById } from '@/common/ai/models';
-import { useTopicExpansion } from '../hooks';
-import type { VideoTopic, TranscriptSegment, ChapterWithContent } from '@/apis/project/youtube/types';
+import { useTopicExpansion, useSubtopicExpansion } from '../hooks';
+import type { VideoTopic, TopicKeyPoint, TranscriptSegment, ChapterWithContent } from '@/apis/project/youtube/types';
 
 function formatTimestamp(seconds: number): string {
     const mins = Math.floor(seconds / 60);
@@ -23,6 +23,71 @@ function seekVideo(seconds: number) {
         iframe.src = url.toString();
     }
 }
+
+interface SubtopicItemProps {
+    kp: TopicKeyPoint;
+    nextTimestamp: number;
+    videoId: string;
+    videoTitle: string | undefined;
+    chapterSegments: TranscriptSegment[] | undefined;
+}
+
+const SubtopicItem = ({ kp, nextTimestamp, videoId, videoTitle, chapterSegments }: SubtopicItemProps) => {
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
+    const [showTakeaways, setShowTakeaways] = useState(false);
+    const { data, isLoading, isExpanded, expand } = useSubtopicExpansion(
+        videoId, kp.title || kp.text, chapterSegments, kp.timestamp, nextTimestamp, videoTitle
+    );
+
+    const handleToggle = () => {
+        if (!isExpanded) {
+            expand();
+            setShowTakeaways(true);
+        } else {
+            setShowTakeaways(prev => !prev);
+        }
+    };
+
+    return (
+        <div>
+            <div className="flex items-start gap-2 text-sm">
+                <button
+                    onClick={() => seekVideo(kp.timestamp)}
+                    className="flex shrink-0 items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground mt-0.5"
+                >
+                    <Clock size={10} />
+                    {formatTimestamp(kp.timestamp)}
+                </button>
+                <button onClick={handleToggle} className="min-w-0 text-left flex items-start gap-1">
+                    <span className="mt-0.5 shrink-0 text-muted-foreground">
+                        {showTakeaways && isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                    </span>
+                    <div className="min-w-0">
+                        {kp.title && <span className="font-medium text-foreground">{kp.title}: </span>}
+                        <span className="text-muted-foreground">{kp.text}</span>
+                    </div>
+                </button>
+            </div>
+            {isExpanded && showTakeaways && (
+                <div className="ml-16 mt-1 mb-2">
+                    {isLoading && (
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground animate-pulse">
+                            <Loader2 size={12} className="animate-spin" />
+                            Loading key takeaways...
+                        </div>
+                    )}
+                    {data?.summary && (
+                        <div className="markdown-body text-sm text-muted-foreground">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {data.summary}
+                            </ReactMarkdown>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
 
 interface TopicItemProps {
     topic: VideoTopic;
@@ -68,19 +133,14 @@ const TopicItem = ({ topic, videoId, segments, videoTitle, chapters }: TopicItem
             {isOpen && (
                 <div className="mt-2 ml-5 space-y-1">
                     {hasKeyPoints && topic.keyPoints.map((kp, i) => (
-                        <div key={i} className="flex items-start gap-2 text-sm">
-                            <button
-                                onClick={() => seekVideo(kp.timestamp)}
-                                className="flex shrink-0 items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground mt-0.5"
-                            >
-                                <Clock size={10} />
-                                {formatTimestamp(kp.timestamp)}
-                            </button>
-                            <div className="min-w-0">
-                                {kp.title && <span className="font-medium text-foreground">{kp.title}: </span>}
-                                <span className="text-muted-foreground">{kp.text}</span>
-                            </div>
-                        </div>
+                        <SubtopicItem
+                            key={i}
+                            kp={kp}
+                            nextTimestamp={topic.keyPoints[i + 1]?.timestamp ?? (matchingChapter ? matchingChapter.endTime : kp.timestamp + 300)}
+                            videoId={videoId}
+                            videoTitle={videoTitle}
+                            chapterSegments={matchingChapter?.segments}
+                        />
                     ))}
 
                     {!isExpanded && (
