@@ -6,7 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/client/co
 import { ChevronDown, ChevronRight, RefreshCw, LayoutList, Clock, Loader2 } from 'lucide-react';
 import { getModelById } from '@/common/ai/models';
 import { useTopicExpansion } from '../hooks';
-import type { VideoTopic, TranscriptSegment } from '@/apis/project/youtube/types';
+import type { VideoTopic, TranscriptSegment, ChapterWithContent } from '@/apis/project/youtube/types';
 
 function formatTimestamp(seconds: number): string {
     const mins = Math.floor(seconds / 60);
@@ -29,12 +29,16 @@ interface TopicItemProps {
     videoId: string;
     segments: TranscriptSegment[] | undefined;
     videoTitle: string | undefined;
+    chapters: ChapterWithContent[] | undefined;
 }
 
-const TopicItem = ({ topic, videoId, segments, videoTitle }: TopicItemProps) => {
+const TopicItem = ({ topic, videoId, segments, videoTitle, chapters }: TopicItemProps) => {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
     const [isOpen, setIsOpen] = useState(false);
-    const { data, isLoading, isExpanded, expand } = useTopicExpansion(videoId, topic.title, segments, videoTitle);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
+    const [showExpansion, setShowExpansion] = useState(true);
+    const matchingChapter = chapters?.find(c => c.title === topic.title);
+    const { data, isLoading, isExpanded, expand } = useTopicExpansion(videoId, topic.title, segments, videoTitle, matchingChapter?.segments);
     const hasKeyPoints = topic.keyPoints && topic.keyPoints.length > 0;
 
     return (
@@ -87,13 +91,20 @@ const TopicItem = ({ topic, videoId, segments, videoTitle }: TopicItemProps) => 
 
                     {isExpanded && (
                         <div className="mt-2 border-t border-border pt-2">
+                            <button
+                                onClick={() => setShowExpansion(prev => !prev)}
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-1"
+                            >
+                                {showExpansion ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                Detailed Summary
+                            </button>
                             {isLoading && (
                                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground animate-pulse">
                                     <Loader2 size={12} className="animate-spin" />
                                     Expanding...
                                 </div>
                             )}
-                            {data?.summary && (
+                            {showExpansion && data?.summary && (
                                 <div className="markdown-body text-sm">
                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                         {data.summary}
@@ -122,6 +133,7 @@ interface MainTopicsSectionProps {
     videoId: string;
     segments: TranscriptSegment[] | undefined;
     videoTitle: string | undefined;
+    chapters: ChapterWithContent[] | undefined;
 }
 
 export const MainTopicsSection = ({
@@ -138,6 +150,7 @@ export const MainTopicsSection = ({
     videoId,
     segments,
     videoTitle,
+    chapters,
 }: MainTopicsSectionProps) => {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
     const [open, setOpen] = useState(true);
@@ -204,6 +217,7 @@ export const MainTopicsSection = ({
                                     videoId={videoId}
                                     segments={segments}
                                     videoTitle={videoTitle}
+                                    chapters={chapters}
                                 />
                             ))}
                         </div>

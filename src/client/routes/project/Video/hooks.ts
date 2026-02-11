@@ -150,12 +150,13 @@ export function useVideoTopics(videoId: string, segments: TranscriptSegment[] | 
     return useVideoAIAction('topics', videoId, segments, title, chapters);
 }
 
-export function useTopicExpansion(videoId: string, topicTitle: string, segments: TranscriptSegment[] | undefined, videoTitle: string | undefined) {
+export function useTopicExpansion(videoId: string, topicTitle: string, segments: TranscriptSegment[] | undefined, videoTitle: string | undefined, chapterSegments?: TranscriptSegment[]) {
     const queryDefaults = useQueryDefaults();
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral trigger flag
     const [isEnabled, setIsEnabled] = useState(false);
 
-    const transcript = segments ? segments.map(s => s.text).join(' ') : '';
+    const effectiveSegments = chapterSegments ?? segments;
+    const transcript = effectiveSegments ? effectiveSegments.map(s => s.text).join(' ') : '';
 
     const query = useQuery({
         queryKey: ['youtube', 'topic-expand', videoId, topicTitle],
@@ -175,7 +176,7 @@ export function useTopicExpansion(videoId: string, topicTitle: string, segments:
                 throw error;
             }
         },
-        enabled: isEnabled && !!videoId && !!segments && segments.length > 0,
+        enabled: isEnabled && !!videoId && !!effectiveSegments && effectiveSegments.length > 0,
         ...queryDefaults,
     });
 

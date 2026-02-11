@@ -106,6 +106,7 @@ export const Video = () => {
                                     videoId={videoId}
                                     segments={transcript?.transcript}
                                     videoTitle={video?.title}
+                                    chapters={transcript?.chapters}
                                 />
                             </>
                         )}
