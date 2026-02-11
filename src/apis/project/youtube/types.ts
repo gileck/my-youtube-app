@@ -106,16 +106,35 @@ export interface GetTranscriptResponse {
     _isRateLimited?: boolean;
 }
 
+// AI Action Types
+export type AIActionType = 'summary' | 'keypoints' | 'topics' | 'topic-expand';
+
 // Get Video Summary
 export interface GetVideoSummaryRequest {
     videoId: string;
     transcript: string;
     title: string;
+    chapters?: Array<{ title: string; content: string }>;
     bypassCache?: boolean;
+    actionType?: AIActionType;
+    topicTitle?: string;
+}
+
+export interface ChapterSummary {
+    title: string;
+    summary: string;
+}
+
+export interface VideoTopic {
+    title: string;
+    description: string;
+    timestamp: number;
 }
 
 export interface GetVideoSummaryResponse {
     summary?: string;
+    chapterSummaries?: ChapterSummary[];
+    topics?: VideoTopic[];
     modelId?: string;
     cost?: { totalCost: number };
     error?: string;

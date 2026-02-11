@@ -1,7 +1,8 @@
+import { Sparkles, ListChecks } from 'lucide-react';
 import { useRouter } from '@/client/features';
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
-import { useVideoDetails, useTranscript, useVideoSummary } from './hooks';
-import { VideoPlayer, VideoInfo, VideoDetailSkeleton, TranscriptSection, ChaptersSection, AISummarySection } from './components';
+import { useVideoDetails, useTranscript, useVideoSummary, useVideoKeyPoints, useVideoTopics } from './hooks';
+import { VideoPlayer, VideoInfo, VideoDetailSkeleton, TranscriptSection, ChaptersSection, AIActionSection, MainTopicsSection } from './components';
 
 export const Video = () => {
     const { routeParams } = useRouter();
@@ -15,11 +16,33 @@ export const Video = () => {
 
     const {
         data: summaryData,
+        isEnabled: summaryEnabled,
         isLoading: summaryLoading,
-        isRegenerating,
+        isRegenerating: summaryRegenerating,
         error: summaryError,
-        regenerate,
-    } = useVideoSummary(videoId, transcript?.transcript, video?.title);
+        generate: summaryGenerate,
+        regenerate: summaryRegenerate,
+    } = useVideoSummary(videoId, transcript?.transcript, video?.title, transcript?.chapters);
+
+    const {
+        data: keyPointsData,
+        isEnabled: keyPointsEnabled,
+        isLoading: keyPointsLoading,
+        isRegenerating: keyPointsRegenerating,
+        error: keyPointsError,
+        generate: keyPointsGenerate,
+        regenerate: keyPointsRegenerate,
+    } = useVideoKeyPoints(videoId, transcript?.transcript, video?.title, transcript?.chapters);
+
+    const {
+        data: topicsData,
+        isEnabled: topicsEnabled,
+        isLoading: topicsLoading,
+        isRegenerating: topicsRegenerating,
+        error: topicsError,
+        generate: topicsGenerate,
+        regenerate: topicsRegenerate,
+    } = useVideoTopics(videoId, transcript?.transcript, video?.title, transcript?.chapters);
 
     return (
         <div className="mx-auto max-w-3xl px-4 py-4">
@@ -38,16 +61,53 @@ export const Video = () => {
 
                     <div className="mt-4 space-y-2 border-t border-border pt-4">
                         {transcript?.transcript && transcript.transcript.length > 0 && (
-                            <AISummarySection
-                                summary={summaryData?.summary}
-                                modelId={summaryData?.modelId}
-                                cost={summaryData?.cost}
-                                isFromCache={summaryData?._isFromCache}
-                                isLoading={summaryLoading}
-                                isRegenerating={isRegenerating}
-                                error={summaryError}
-                                onRegenerate={regenerate}
-                            />
+                            <>
+                                <AIActionSection
+                                    title="AI Summary"
+                                    icon={<Sparkles size={14} />}
+                                    summary={summaryData?.summary}
+                                    chapterSummaries={summaryData?.chapterSummaries}
+                                    modelId={summaryData?.modelId}
+                                    cost={summaryData?.cost}
+                                    isFromCache={summaryData?._isFromCache}
+                                    isEnabled={summaryEnabled}
+                                    isLoading={summaryLoading}
+                                    isRegenerating={summaryRegenerating}
+                                    error={summaryError}
+                                    onGenerate={summaryGenerate}
+                                    onRegenerate={summaryRegenerate}
+                                />
+                                <AIActionSection
+                                    title="Key Points"
+                                    icon={<ListChecks size={14} />}
+                                    summary={keyPointsData?.summary}
+                                    chapterSummaries={keyPointsData?.chapterSummaries}
+                                    modelId={keyPointsData?.modelId}
+                                    cost={keyPointsData?.cost}
+                                    isFromCache={keyPointsData?._isFromCache}
+                                    isEnabled={keyPointsEnabled}
+                                    isLoading={keyPointsLoading}
+                                    isRegenerating={keyPointsRegenerating}
+                                    error={keyPointsError}
+                                    onGenerate={keyPointsGenerate}
+                                    onRegenerate={keyPointsRegenerate}
+                                />
+                                <MainTopicsSection
+                                    topics={topicsData?.topics}
+                                    modelId={topicsData?.modelId}
+                                    cost={topicsData?.cost}
+                                    isFromCache={topicsData?._isFromCache}
+                                    isEnabled={topicsEnabled}
+                                    isLoading={topicsLoading}
+                                    isRegenerating={topicsRegenerating}
+                                    error={topicsError}
+                                    onGenerate={topicsGenerate}
+                                    onRegenerate={topicsRegenerate}
+                                    videoId={videoId}
+                                    segments={transcript?.transcript}
+                                    videoTitle={video?.title}
+                                />
+                            </>
                         )}
 
                         {transcriptLoading && (
