@@ -97,8 +97,10 @@ export const AIActionSection = ({
                     {cost && (
                         <span className="text-xs text-muted-foreground">${cost.totalCost.toFixed(4)}</span>
                     )}
-                    {isFromCache && (
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">Cached</span>
+                    {!loading && summary && (
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                            {isFromCache ? 'Cached' : 'Fresh'}
+                        </span>
                     )}
                     <Button
                         variant="ghost"
@@ -114,13 +116,13 @@ export const AIActionSection = ({
             <CollapsibleContent>
                 <div className="mt-2 space-y-2">
                     <div className="rounded-lg bg-muted/50 p-3">
-                        {loading && !summary && (
+                        {loading && (
                             <p className="text-sm text-muted-foreground animate-pulse">Generating {title.toLowerCase()}...</p>
                         )}
                         {error && !loading && (
                             <p className="text-sm text-destructive">Failed to generate {title.toLowerCase()}: {error.message}</p>
                         )}
-                        {summary && (
+                        {!loading && summary && (
                             <div className="markdown-body text-sm">
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                     {summary}

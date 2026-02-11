@@ -168,8 +168,10 @@ export const MainTopicsSection = ({
                     {cost && (
                         <span className="text-xs text-muted-foreground">${cost.totalCost.toFixed(4)}</span>
                     )}
-                    {isFromCache && (
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">Cached</span>
+                    {!loading && topics && topics.length > 0 && (
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                            {isFromCache ? 'Cached' : 'Fresh'}
+                        </span>
                     )}
                     <Button
                         variant="ghost"
@@ -184,13 +186,13 @@ export const MainTopicsSection = ({
             </div>
             <CollapsibleContent>
                 <div className="mt-2 space-y-2">
-                    {loading && (!topics || topics.length === 0) && (
+                    {loading && (
                         <p className="text-sm text-muted-foreground animate-pulse">Identifying main topics...</p>
                     )}
                     {error && !loading && (
                         <p className="text-sm text-destructive">Failed to identify topics: {error.message}</p>
                     )}
-                    {topics && topics.length > 0 && (
+                    {!loading && topics && topics.length > 0 && (
                         <div className="space-y-2">
                             {topics.map((topic, i) => (
                                 <TopicItem
