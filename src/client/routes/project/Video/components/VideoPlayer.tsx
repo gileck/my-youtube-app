@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { X, Play, Pause, ChevronDown, ChevronUp } from 'lucide-react';
 import { useYouTubeIFrameAPI, useVideoPlayerStore, YTPlayerState } from '@/client/features/project/video-player';
 import type { YTPlayerInstance } from '@/client/features/project/video-player';
+import { useVideoUIStateStore } from '@/client/features/project/video-ui-state';
 
 interface VideoPlayerProps {
     videoId: string;
@@ -37,6 +38,10 @@ export const VideoPlayer = ({ videoId }: VideoPlayerProps) => {
     const unregisterSeekFn = useVideoPlayerStore((s) => s._unregisterSeekFn);
     const reset = useVideoPlayerStore((s) => s.reset);
 
+    const savedTime = useVideoUIStateStore((s) => s.savedTimes[videoId] ?? 0);
+    const setSavedTime = useVideoUIStateStore((s) => s.setSavedTime);
+    const savedTimeRef = useRef(savedTime);
+
     const startPolling = useCallback(() => {
         if (pollingRef.current) return;
         pollingRef.current = setInterval(() => {
@@ -67,6 +72,10 @@ export const VideoPlayer = ({ videoId }: VideoPlayerProps) => {
                     playerRef.current = target;
                     registerSeekFn((seconds: number) => target.seekTo(seconds, true));
                     setIsPlayerReady(true);
+                    if (savedTimeRef.current > 0) {
+                        target.seekTo(savedTimeRef.current, true);
+                        setCurrentTime(savedTimeRef.current);
+                    }
                 },
                 onStateChange: ({ data }) => {
                     const playing = data === YTPlayerState.PLAYING;
@@ -91,6 +100,35 @@ export const VideoPlayer = ({ videoId }: VideoPlayerProps) => {
             playerRef.current = null;
         };
     }, [isAPIReady, videoId, registerSeekFn, unregisterSeekFn, setIsPlayerReady, setIsPlaying, setCurrentTime, startPolling, stopPolling, reset]);
+
+    // Persist current playback time every 5 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const player = playerRef.current;
+            if (player) {
+                const time = player.getCurrentTime();
+                if (time > 0) {
+                    setSavedTime(videoId, time);
+                }
+            }
+        }, 5000);
+        return () => clearInterval(interval);
+    }, [videoId, setSavedTime]);
+
+    // Save time on unmount
+    useEffect(() => {
+        return () => {
+            const player = playerRef.current;
+            if (player) {
+                try {
+                    const time = player.getCurrentTime();
+                    if (time > 0) setSavedTime(videoId, time);
+                } catch {
+                    // player may already be destroyed
+                }
+            }
+        };
+    }, [videoId, setSavedTime]);
 
     useEffect(() => {
         const sentinel = sentinelRef.current;
@@ -140,7 +178,7 @@ export const VideoPlayer = ({ videoId }: VideoPlayerProps) => {
             {/* Video player container */}
             <div className={`[&_iframe]:!w-full [&_iframe]:!h-full ${
                 showMini
-                    ? `!fixed bottom-4 right-4 z-50 w-80 aspect-video shadow-2xl rounded-lg overflow-hidden [&_iframe]:pointer-events-none ${isMinimized ? 'invisible' : ''}`
+                    ? `!fixed bottom-4 right-4 z-50 w-80 aspect-video shadow-2xl rounded-lg overflow-hidden ${isMinimized ? 'invisible' : ''}`
                     : 'relative w-full h-full overflow-hidden rounded-lg bg-foreground'
             }`}>
                 <div className={`absolute top-1 right-1 z-10 flex items-center gap-1 ${showMini && !isMinimized ? '' : 'hidden'}`}>

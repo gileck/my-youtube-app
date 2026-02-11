@@ -1,10 +1,11 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/client/components/template/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/client/components/template/ui/collapsible';
 import { ChevronDown, ChevronRight, RefreshCw, BookOpen } from 'lucide-react';
 import { getModelById } from '@/common/ai/models';
+import { useVideoUIToggle } from '@/client/features/project/video-ui-state';
 import type { ChapterSummary } from '@/apis/project/youtube/types';
 
 interface AIActionSectionProps {
@@ -21,11 +22,12 @@ interface AIActionSectionProps {
     error?: Error | null;
     onGenerate: () => void;
     onRegenerate: () => void;
+    videoId: string;
+    sectionKey: string;
 }
 
-const ChapterSummaryItem = ({ chapter }: { chapter: ChapterSummary }) => {
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
-    const [open, setOpen] = useState(false);
+const ChapterSummaryItem = ({ chapter, videoId, sectionKey, index }: { chapter: ChapterSummary; videoId: string; sectionKey: string; index: number }) => {
+    const [open, setOpen] = useVideoUIToggle(videoId, `${sectionKey}:ch:${index}`, false);
 
     return (
         <Collapsible open={open} onOpenChange={setOpen}>
@@ -62,11 +64,11 @@ export const AIActionSection = ({
     error,
     onGenerate,
     onRegenerate,
+    videoId,
+    sectionKey,
 }: AIActionSectionProps) => {
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
-    const [open, setOpen] = useState(true);
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
-    const [chaptersOpen, setChaptersOpen] = useState(false);
+    const [open, setOpen] = useVideoUIToggle(videoId, sectionKey, true);
+    const [chaptersOpen, setChaptersOpen] = useVideoUIToggle(videoId, `${sectionKey}:chapters`, false);
 
     const modelName = modelId ? getModelById(modelId).name : undefined;
     const loading = isLoading || isRegenerating;
@@ -144,7 +146,7 @@ export const AIActionSection = ({
                             <CollapsibleContent>
                                 <div className="mt-1 rounded-lg bg-muted/50 p-2">
                                     {chapterSummaries.map((chapter, i) => (
-                                        <ChapterSummaryItem key={i} chapter={chapter} />
+                                        <ChapterSummaryItem key={i} chapter={chapter} videoId={videoId} sectionKey={sectionKey} index={i} />
                                     ))}
                                 </div>
                             </CollapsibleContent>

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getVideoDetails, getTranscript, getVideoSummary } from '@/apis/project/youtube/client';
 import { useQueryDefaults } from '@/client/query/defaults';
 import { recordApiCall, recordApiError } from '@/client/features/project/cache-stats';
+import { useVideoUIToggle } from '@/client/features/project/video-ui-state';
 import type { AIActionType, GetVideoDetailsResponse, GetTranscriptResponse, GetVideoSummaryResponse, TranscriptSegment, ChapterWithContent } from '@/apis/project/youtube/types';
 
 const TIMESTAMP_INTERVAL_SECONDS = 30;
@@ -75,8 +76,7 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
     const queryClient = useQueryClient();
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral loading indicator
     const [isRegenerating, setIsRegenerating] = useState(false);
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral trigger flag
-    const [isEnabled, setIsEnabled] = useState(false);
+    const [isEnabled, setIsEnabled] = useVideoUIToggle(videoId, `aiAction:${actionType}`, false);
 
     const transcript = segments
         ? (actionType === 'topics'
@@ -116,7 +116,7 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
 
     const generate = useCallback(() => {
         setIsEnabled(true);
-    }, []);
+    }, [setIsEnabled]);
 
     const regenerate = useCallback(async () => {
         setIsRegenerating(true);
@@ -150,10 +150,14 @@ export function useVideoTopics(videoId: string, segments: TranscriptSegment[] | 
     return useVideoAIAction('topics', videoId, segments, title, chapters);
 }
 
-export function useTopicExpansion(videoId: string, topicTitle: string, segments: TranscriptSegment[] | undefined, videoTitle: string | undefined, chapterSegments?: TranscriptSegment[]) {
+export function useTopicExpansion(videoId: string, topicTitle: string, segments: TranscriptSegment[] | undefined, videoTitle: string | undefined, chapterSegments?: TranscriptSegment[], storeKey?: string) {
     const queryDefaults = useQueryDefaults();
+    const [storedEnabled, setStoredEnabled] = useVideoUIToggle(videoId, storeKey ?? '', false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral trigger flag
-    const [isEnabled, setIsEnabled] = useState(false);
+    const [localEnabled, setLocalEnabled] = useState(false);
+
+    const isEnabled = storeKey ? storedEnabled : localEnabled;
+    const setIsEnabled = storeKey ? setStoredEnabled : setLocalEnabled;
 
     const effectiveSegments = chapterSegments ?? segments;
     const transcript = effectiveSegments ? effectiveSegments.map(s => s.text).join(' ') : '';
@@ -180,15 +184,19 @@ export function useTopicExpansion(videoId: string, topicTitle: string, segments:
         ...queryDefaults,
     });
 
-    const expand = useCallback(() => { setIsEnabled(true); }, []);
+    const expand = useCallback(() => { setIsEnabled(true); }, [setIsEnabled]);
 
     return { ...query, isExpanded: isEnabled, expand };
 }
 
-export function useSubtopicExpansion(videoId: string, subtopicTitle: string, chapterSegments: TranscriptSegment[] | undefined, startTime: number, endTime: number, videoTitle: string | undefined) {
+export function useSubtopicExpansion(videoId: string, subtopicTitle: string, chapterSegments: TranscriptSegment[] | undefined, startTime: number, endTime: number, videoTitle: string | undefined, storeKey?: string) {
     const queryDefaults = useQueryDefaults();
+    const [storedEnabled, setStoredEnabled] = useVideoUIToggle(videoId, storeKey ?? '', false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral trigger flag
-    const [isEnabled, setIsEnabled] = useState(false);
+    const [localEnabled, setLocalEnabled] = useState(false);
+
+    const isEnabled = storeKey ? storedEnabled : localEnabled;
+    const setIsEnabled = storeKey ? setStoredEnabled : setLocalEnabled;
 
     const transcript = useMemo(() => {
         if (!chapterSegments) return '';
@@ -220,7 +228,7 @@ export function useSubtopicExpansion(videoId: string, subtopicTitle: string, cha
         ...queryDefaults,
     });
 
-    const expand = useCallback(() => { setIsEnabled(true); }, []);
+    const expand = useCallback(() => { setIsEnabled(true); }, [setIsEnabled]);
 
     return { ...query, isExpanded: isEnabled, expand };
 }

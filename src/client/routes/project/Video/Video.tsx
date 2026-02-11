@@ -76,6 +76,8 @@ export const Video = () => {
                                     error={summaryError}
                                     onGenerate={summaryGenerate}
                                     onRegenerate={summaryRegenerate}
+                                    videoId={videoId}
+                                    sectionKey="aiSummary"
                                 />
                                 <AIActionSection
                                     title="Key Points"
@@ -91,6 +93,8 @@ export const Video = () => {
                                     error={keyPointsError}
                                     onGenerate={keyPointsGenerate}
                                     onRegenerate={keyPointsRegenerate}
+                                    videoId={videoId}
+                                    sectionKey="keyPoints"
                                 />
                                 <MainTopicsSection
                                     topics={topicsData?.topics}
@@ -120,7 +124,7 @@ export const Video = () => {
                         )}
 
                         {transcript?.chapters && transcript.chapters.length > 0 && (
-                            <ChaptersSection chapters={transcript.chapters} />
+                            <ChaptersSection chapters={transcript.chapters} videoId={videoId} />
                         )}
 
                         {!transcriptLoading && transcript?.error && (

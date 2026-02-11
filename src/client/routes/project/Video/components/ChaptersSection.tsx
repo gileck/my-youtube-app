@@ -4,6 +4,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/client/co
 import { errorToastAuto } from '@/client/features/template/error-tracking';
 import { ChevronDown, ChevronRight, Copy, Check } from 'lucide-react';
 import { useActiveChapter, useSeekTo } from '@/client/features/project/video-player';
+import { useVideoUIToggle } from '@/client/features/project/video-ui-state';
 import type { ChapterWithContent } from '@/apis/project/youtube/types';
 
 function formatTime(seconds: number): string {
@@ -14,11 +15,11 @@ function formatTime(seconds: number): string {
 
 interface ChaptersSectionProps {
     chapters: ChapterWithContent[];
+    videoId: string;
 }
 
-export const ChaptersSection = ({ chapters }: ChaptersSectionProps) => {
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
-    const [open, setOpen] = useState(false);
+export const ChaptersSection = ({ chapters, videoId }: ChaptersSectionProps) => {
+    const [open, setOpen] = useVideoUIToggle(videoId, 'chapters', false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral clipboard feedback
     const [copied, setCopied] = useState(false);
     const activeChapter = useActiveChapter(chapters);

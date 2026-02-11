@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/client/components/template/ui/button';
@@ -6,7 +6,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/client/co
 import { ChevronDown, ChevronRight, RefreshCw, LayoutList, Clock, Loader2 } from 'lucide-react';
 import { getModelById } from '@/common/ai/models';
 import { useTopicExpansion, useSubtopicExpansion } from '../hooks';
-import { useActiveTopic, useActiveKeyPoint, useSeekTo } from '@/client/features/project/video-player';
+import { useActiveTopic, useActiveKeyPoint, useSeekTo, useVideoPlayerStore } from '@/client/features/project/video-player';
+import { useVideoUIToggle } from '@/client/features/project/video-ui-state';
 import type { VideoTopic, TopicKeyPoint, TranscriptSegment, ChapterWithContent } from '@/apis/project/youtube/types';
 
 function formatTimestamp(seconds: number): string {
@@ -24,13 +25,14 @@ interface SubtopicItemProps {
     isActive: boolean;
     onSeek: (seconds: number) => void;
     preload?: boolean;
+    topicIndex: number;
+    kpIndex: number;
 }
 
-const SubtopicItem = ({ kp, nextTimestamp, videoId, videoTitle, chapterSegments, isActive, onSeek, preload }: SubtopicItemProps) => {
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
-    const [showTakeaways, setShowTakeaways] = useState(false);
+const SubtopicItem = ({ kp, nextTimestamp, videoId, videoTitle, chapterSegments, isActive, onSeek, preload, topicIndex, kpIndex }: SubtopicItemProps) => {
+    const [showTakeaways, setShowTakeaways] = useVideoUIToggle(videoId, `subtopic:${topicIndex}:${kpIndex}`, false);
     const { data, isLoading, isExpanded, expand } = useSubtopicExpansion(
-        videoId, kp.title || kp.text, chapterSegments, kp.timestamp, nextTimestamp, videoTitle
+        videoId, kp.title || kp.text, chapterSegments, kp.timestamp, nextTimestamp, videoTitle, `subtopicExp:${topicIndex}:${kpIndex}`
     );
 
     // Auto-expand when preload becomes true (triggers React Query fetch for caching)
@@ -46,12 +48,12 @@ const SubtopicItem = ({ kp, nextTimestamp, videoId, videoTitle, chapterSegments,
             expand();
             setShowTakeaways(true);
         } else {
-            setShowTakeaways(prev => !prev);
+            setShowTakeaways(!showTakeaways);
         }
     };
 
     return (
-        <div className={`transition-colors ${isActive ? 'border-l-2 border-primary pl-2' : ''}`}>
+        <div className={`rounded-md px-1.5 py-0.5 transition-colors ${isActive ? 'bg-primary/10' : ''}`}>
             <div className="flex items-start gap-2 text-sm">
                 <button
                     onClick={() => onSeek(kp.timestamp)}
@@ -98,23 +100,24 @@ interface TopicItemProps {
     videoTitle: string | undefined;
     chapters: ChapterWithContent[] | undefined;
     isActive: boolean;
+    topicIndex: number;
+    preloadFirstSubtopic?: boolean;
 }
 
-const TopicItem = ({ topic, videoId, segments, videoTitle, chapters, isActive }: TopicItemProps) => {
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
-    const [isOpen, setIsOpen] = useState(false);
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
-    const [showExpansion, setShowExpansion] = useState(true);
+const TopicItem = ({ topic, videoId, segments, videoTitle, chapters, isActive, topicIndex, preloadFirstSubtopic }: TopicItemProps) => {
+    const [isOpen, setIsOpen] = useVideoUIToggle(videoId, `topic:${topicIndex}`, false);
+    const [showExpansion, setShowExpansion] = useVideoUIToggle(videoId, `topicDetail:${topicIndex}`, true);
     const matchingChapter = chapters?.find(c => c.title === topic.title);
-    const { data, isLoading, isExpanded, expand } = useTopicExpansion(videoId, topic.title, segments, videoTitle, matchingChapter?.segments);
+    const { data, isLoading, isExpanded, expand } = useTopicExpansion(videoId, topic.title, segments, videoTitle, matchingChapter?.segments, `topicExp:${topicIndex}`);
     const hasKeyPoints = topic.keyPoints && topic.keyPoints.length > 0;
-    const activeKeyPoint = useActiveKeyPoint(topic.keyPoints);
+    const rawActiveKeyPoint = useActiveKeyPoint(topic.keyPoints);
+    const activeKeyPoint = isActive ? rawActiveKeyPoint : null;
     const seekTo = useSeekTo();
 
     return (
         <div className={`rounded-lg p-3 transition-colors bg-muted/30 ${isActive ? 'border-l-2 border-primary' : ''}`}>
             <button
-                onClick={() => setIsOpen(prev => !prev)}
+                onClick={() => setIsOpen(!isOpen)}
                 className="flex w-full items-start gap-2 text-left"
             >
                 <span className="mt-0.5 shrink-0 text-muted-foreground">
@@ -149,7 +152,9 @@ const TopicItem = ({ topic, videoId, segments, videoTitle, chapters, isActive }:
                                 chapterSegments={matchingChapter?.segments}
                                 isActive={activeKeyPoint === kp}
                                 onSeek={seekTo}
-                                preload={activeIdx >= 0 && (i === activeIdx || i === activeIdx + 1)}
+                                preload={(activeIdx >= 0 && (i === activeIdx || i === activeIdx + 1)) || (i === 0 && !!preloadFirstSubtopic)}
+                                topicIndex={topicIndex}
+                                kpIndex={i}
                             />
                         ));
                     })()}
@@ -163,7 +168,7 @@ const TopicItem = ({ topic, videoId, segments, videoTitle, chapters, isActive }:
                     {isExpanded && (
                         <div className="mt-2 border-t border-border pt-2">
                             <button
-                                onClick={() => setShowExpansion(prev => !prev)}
+                                onClick={() => setShowExpansion(!showExpansion)}
                                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-1"
                             >
                                 {showExpansion ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -223,9 +228,11 @@ export const MainTopicsSection = ({
     videoTitle,
     chapters,
 }: MainTopicsSectionProps) => {
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
-    const [open, setOpen] = useState(true);
+    const [open, setOpen] = useVideoUIToggle(videoId, 'mainTopics', true);
     const activeTopic = useActiveTopic(topics);
+    const currentTime = useVideoPlayerStore((s) => s.currentTime);
+
+    const activeTopicIdx = topics ? topics.findIndex(t => t === activeTopic) : -1;
 
     const modelName = modelId ? getModelById(modelId).name : undefined;
     const loading = isLoading || isRegenerating;
@@ -282,17 +289,27 @@ export const MainTopicsSection = ({
                     )}
                     {!loading && topics && topics.length > 0 && (
                         <div className="space-y-2">
-                            {topics.map((topic, i) => (
-                                <TopicItem
-                                    key={i}
-                                    topic={topic}
-                                    videoId={videoId}
-                                    segments={segments}
-                                    videoTitle={videoTitle}
-                                    chapters={chapters}
-                                    isActive={activeTopic === topic}
-                                />
-                            ))}
+                            {topics.map((topic, i) => {
+                                // Preload first subtopic of this topic when the previous topic is active
+                                // and currentTime is past its last keypoint
+                                const prevTopic = i > 0 ? topics[i - 1] : null;
+                                const prevLastKpTime = prevTopic?.keyPoints?.[prevTopic.keyPoints.length - 1]?.timestamp;
+                                const shouldPreloadFirst = activeTopicIdx === i - 1 && prevLastKpTime !== undefined && currentTime >= prevLastKpTime;
+
+                                return (
+                                    <TopicItem
+                                        key={i}
+                                        topic={topic}
+                                        videoId={videoId}
+                                        segments={segments}
+                                        videoTitle={videoTitle}
+                                        chapters={chapters}
+                                        isActive={activeTopic === topic}
+                                        topicIndex={i}
+                                        preloadFirstSubtopic={shouldPreloadFirst}
+                                    />
+                                );
+                            })}
                         </div>
                     )}
                 </div>
