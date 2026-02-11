@@ -6,12 +6,8 @@
  */
 
 import { mergeApiHandlers } from "./registry";
-import { chatApiHandlers } from "./project/chat/server";
-import { todosApiHandlers } from "./project/todos/server";
 import { youtubeApiHandlers } from "./project/youtube/server";
 
 export const projectApiHandlers = mergeApiHandlers(
-  chatApiHandlers,
-  todosApiHandlers,
   youtubeApiHandlers
 );

@@ -16,9 +16,6 @@
 
 import { Routes } from '../features/template/router';
 import { Home } from './project/Home';
-import { AIChat } from './project/AIChat';
-import { Todos } from './project/Todos';
-import { SingleTodo } from './project/SingleTodo';
 import { Dashboard } from './project/Dashboard';
 import { Video } from './project/Video';
 import { Channel } from './project/Channel';
@@ -32,23 +29,14 @@ import { History } from './project/History';
  * These are merged with template routes in index.ts.
  */
 export const projectRoutes: Routes = {
-  // Example app routes (template demo):
   '/': Home,
-  '/ai-chat': AIChat,
-  '/todos': Todos,
-  '/todos/:todoId': SingleTodo,
   '/video/:videoId': Video,
   '/channel/:channelId': Channel,
-
-  // Admin routes
-  '/admin/dashboard': Dashboard,
-
-  '/cache-stats': CacheStats,
   '/video-feed': VideoFeed,
   '/bookmarks': Bookmarks,
   '/history': History,
+  '/cache-stats': CacheStats,
 
-  // Add more project-specific routes here:
-  // '/my-page': MyPage,
-  // '/share/:id': { component: SharePage, public: true },
+  // Admin routes
+  '/admin/dashboard': Dashboard,
 };
