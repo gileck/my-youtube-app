@@ -1,6 +1,6 @@
 import apiClient from '@/client/utils/apiClient';
 import { CacheResult } from '@/common/cache/types';
-import { API_SEARCH_VIDEOS, API_SEARCH_CHANNELS, API_GET_VIDEO_DETAILS, API_GET_CHANNEL_VIDEOS, API_GET_TRANSCRIPT } from './index';
+import { API_SEARCH_VIDEOS, API_SEARCH_CHANNELS, API_GET_VIDEO_DETAILS, API_GET_CHANNEL_VIDEOS, API_GET_TRANSCRIPT, API_GET_VIDEO_SUMMARY } from './index';
 import {
     SearchVideosRequest,
     SearchVideosResponse,
@@ -12,6 +12,8 @@ import {
     GetChannelVideosResponse,
     GetTranscriptRequest,
     GetTranscriptResponse,
+    GetVideoSummaryRequest,
+    GetVideoSummaryResponse,
 } from './types';
 
 export const searchVideos = async (
@@ -42,4 +44,10 @@ export const getTranscript = async (
     params: GetTranscriptRequest
 ): Promise<CacheResult<GetTranscriptResponse>> => {
     return apiClient.call(API_GET_TRANSCRIPT, params);
+};
+
+export const getVideoSummary = async (
+    params: GetVideoSummaryRequest
+): Promise<CacheResult<GetVideoSummaryResponse>> => {
+    return apiClient.call(API_GET_VIDEO_SUMMARY, params);
 };

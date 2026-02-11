@@ -106,6 +106,22 @@ export interface GetTranscriptResponse {
     _isRateLimited?: boolean;
 }
 
+// Get Video Summary
+export interface GetVideoSummaryRequest {
+    videoId: string;
+    transcript: string;
+    title: string;
+    bypassCache?: boolean;
+}
+
+export interface GetVideoSummaryResponse {
+    summary?: string;
+    modelId?: string;
+    cost?: { totalCost: number };
+    error?: string;
+    _isFromCache?: boolean;
+}
+
 export interface ApiHandlerContext {
     userId?: string;
 }
