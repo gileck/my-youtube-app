@@ -86,6 +86,7 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
     const chapterData = useMemo(
         () => chapters?.map(c => ({
             title: c.title,
+            startTime: c.startTime,
             content: actionType === 'topics'
                 ? buildTimestampedTranscript(c.segments)
                 : c.content,
@@ -119,6 +120,7 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
 
     const regenerate = useCallback(async () => {
         setIsRegenerating(true);
+        queryClient.setQueryData(queryKey, undefined);
         try {
             const response = await getVideoSummary({ videoId, transcript, title: title ?? '', chapters: chapterData, bypassCache: true, actionType });
             if (response.data?.error) {

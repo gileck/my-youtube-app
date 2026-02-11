@@ -31,6 +31,19 @@ function parseTopicsJson(text: string): VideoTopic[] {
     return [];
 }
 
+function parseChapterTopicJson(text: string): { description: string; keyPoints: TopicKeyPoint[] } {
+    const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+    const jsonStr = codeBlockMatch ? codeBlockMatch[1] : text;
+    try {
+        const parsed = JSON.parse(jsonStr.trim());
+        return {
+            description: String(parsed.description || ''),
+            keyPoints: parseKeyPoints(parsed.keyPoints),
+        };
+    } catch { /* return defaults */ }
+    return { description: '', keyPoints: [] };
+}
+
 interface AIActionPrompts {
     singlePass: (title: string, transcript: string) => string;
     chapter: (chapterTitle: string, content: string) => string;
@@ -222,8 +235,67 @@ Be thorough and specific, referencing the actual content from the video.`;
             return { error: `Unknown action type: ${actionType}` };
         }
 
-        // Topics always use single-pass — timestamps are more accurate and results are
-        // more cohesive when the AI sees the full transcript at once.
+        // Chapter-based topics: when chapters exist, use them directly as topics
+        // and only ask AI for description + key points per chapter.
+        const useChapterTopics = actionType === 'topics'
+            && request.chapters
+            && request.chapters.length > 1;
+
+        if (useChapterTopics) {
+            const chapters = request.chapters!;
+            const { data, isFromCache } = await youtubeCache.withCache(
+                async () => {
+                    const chapterResponses = await Promise.all(
+                        chapters.map(ch =>
+                            adapter.processPromptToText(
+                                `You are a helpful assistant that analyzes YouTube video chapters.
+
+Chapter: "${ch.title}"
+Chapter starts at: ${ch.startTime} seconds
+
+Content (includes [M:SS] timestamp markers):
+${ch.content}
+
+Provide:
+1. description: A 1-2 sentence description of what is discussed in this chapter
+2. keyPoints: An array of 2-10 key points (more for longer chapters). Each has:
+   - text: A single concise sentence
+   - timestamp: Time in seconds based on the [M:SS] markers
+
+Return ONLY a JSON object (not array): {"description": "...", "keyPoints": [{"text": "...", "timestamp": 0}]}`,
+                                'getVideoSummary'
+                            )
+                        )
+                    );
+
+                    const totalCost = chapterResponses.reduce((sum, r) => sum + (r.cost?.totalCost ?? 0), 0);
+
+                    const topics: VideoTopic[] = chapterResponses.map((r, i) => {
+                        const parsed = parseChapterTopicJson(r.result);
+                        return {
+                            title: chapters[i].title,
+                            timestamp: chapters[i].startTime,
+                            description: parsed.description,
+                            keyPoints: parsed.keyPoints,
+                        };
+                    });
+
+                    return { topics, modelId, cost: { totalCost } };
+                },
+                { key: `video-${actionType}`, params: { videoId: request.videoId } },
+                { ttl: YOUTUBE_CACHE_TTL, bypassCache: request.bypassCache }
+            );
+
+            return {
+                topics: data.topics.sort((a, b) => a.timestamp - b.timestamp),
+                modelId: data.modelId,
+                cost: data.cost,
+                _isFromCache: isFromCache,
+            };
+        }
+
+        // For summary/keypoints with chapters, use chapter strategy when transcript is large.
+        // Topics without chapters fall through to single-pass below.
         const useChapterStrategy = actionType !== 'topics'
             && request.transcript.length > SINGLE_PASS_CHAR_LIMIT
             && request.chapters
@@ -273,7 +345,7 @@ Be thorough and specific, referencing the actual content from the video.`;
             { ttl: YOUTUBE_CACHE_TTL, bypassCache: request.bypassCache }
         );
 
-        // For topics, parse JSON from the summary text and sort by timestamp
+        // For topics (no chapters), parse JSON from the summary text and sort by timestamp
         if (actionType === 'topics') {
             const topics = parseTopicsJson(data.summary).sort((a, b) => a.timestamp - b.timestamp);
             return {
