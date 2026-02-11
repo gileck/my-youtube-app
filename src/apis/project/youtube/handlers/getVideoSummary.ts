@@ -251,7 +251,7 @@ Be thorough and specific, referencing the actual content from the video.`;
                                 `You are a helpful assistant that analyzes YouTube video chapters.
 
 Chapter: "${ch.title}"
-Chapter starts at: ${ch.startTime} seconds
+Chapter starts at: ${ch.startTime ?? 0} seconds
 
 Content (includes [M:SS] timestamp markers):
 ${ch.content}
@@ -274,7 +274,7 @@ Return ONLY a JSON object (not array): {"description": "...", "keyPoints": [{"te
                         const parsed = parseChapterTopicJson(r.result);
                         return {
                             title: chapters[i].title,
-                            timestamp: chapters[i].startTime,
+                            timestamp: Number(chapters[i].startTime) || 0,
                             description: parsed.description,
                             keyPoints: parsed.keyPoints,
                         };
