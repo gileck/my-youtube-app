@@ -1,7 +1,7 @@
 import { useRouter } from '@/client/features';
 import { ExternalLink } from 'lucide-react';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
-import { formatViewCount, formatPublishedDate } from './formatUtils';
+import { formatDuration, formatViewCount, formatPublishedDate } from './formatUtils';
 
 interface VideoCardProps {
     video: YouTubeVideoSearchResult;
@@ -29,7 +29,7 @@ export const VideoCard = ({ video }: VideoCardProps) => {
                 />
                 {video.duration && (
                     <span className="absolute bottom-1 right-1 bg-foreground/80 text-background text-xs px-1.5 py-0.5 rounded">
-                        {video.duration}
+                        {formatDuration(video.duration)}
                     </span>
                 )}
             </div>

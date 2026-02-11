@@ -24,6 +24,8 @@ import { Video } from './project/Video';
 import { Channel } from './project/Channel';
 import { CacheStats } from './project/CacheStats';
 import { VideoFeed } from './project/VideoFeed';
+import { Bookmarks } from './project/Bookmarks';
+import { History } from './project/History';
 
 /**
  * Project route definitions.
@@ -43,6 +45,8 @@ export const projectRoutes: Routes = {
 
   '/cache-stats': CacheStats,
   '/video-feed': VideoFeed,
+  '/bookmarks': Bookmarks,
+  '/history': History,
 
   // Add more project-specific routes here:
   // '/my-page': MyPage,

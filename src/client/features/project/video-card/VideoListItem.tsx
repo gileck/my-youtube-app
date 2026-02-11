@@ -1,7 +1,7 @@
 import { useRouter } from '@/client/features';
 import { ExternalLink } from 'lucide-react';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
-import { formatViewCount, formatPublishedDate } from './formatUtils';
+import { formatDuration, formatViewCount, formatPublishedDate } from './formatUtils';
 
 interface VideoListItemProps {
     video: YouTubeVideoSearchResult;
@@ -30,7 +30,7 @@ export const VideoListItem = ({ video }: VideoListItemProps) => {
                     />
                     {video.duration && (
                         <span className="absolute bottom-0.5 right-0.5 bg-foreground/80 text-background text-[10px] px-1 py-0.5 rounded">
-                            {video.duration}
+                            {formatDuration(video.duration)}
                         </span>
                     )}
                 </div>
