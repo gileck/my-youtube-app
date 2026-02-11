@@ -3,6 +3,7 @@ import { Button } from '@/client/components/template/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/client/components/template/ui/collapsible';
 import { errorToastAuto } from '@/client/features/template/error-tracking';
 import { ChevronDown, ChevronRight, Copy, Check } from 'lucide-react';
+import { useActiveChapter, useSeekTo } from '@/client/features/project/video-player';
 import type { ChapterWithContent } from '@/apis/project/youtube/types';
 
 function formatTime(seconds: number): string {
@@ -20,6 +21,8 @@ export const ChaptersSection = ({ chapters }: ChaptersSectionProps) => {
     const [open, setOpen] = useState(false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral clipboard feedback
     const [copied, setCopied] = useState(false);
+    const activeChapter = useActiveChapter(chapters);
+    const seekTo = useSeekTo();
 
     const handleCopy = async () => {
         try {
@@ -51,11 +54,14 @@ export const ChaptersSection = ({ chapters }: ChaptersSectionProps) => {
             <CollapsibleContent>
                 <div className="mt-2 max-h-96 overflow-y-auto rounded-lg bg-muted/50 p-3 space-y-3">
                     {chapters.map((chapter, i) => (
-                        <div key={i}>
+                        <div key={i} className={`rounded px-2 py-1 -mx-2 transition-colors ${activeChapter === chapter ? 'bg-primary/10' : ''}`}>
                             <div className="flex items-baseline gap-2">
-                                <span className="text-xs text-muted-foreground font-mono flex-shrink-0">
+                                <button
+                                    onClick={() => seekTo(chapter.startTime)}
+                                    className={`text-xs font-mono flex-shrink-0 hover:text-foreground ${activeChapter === chapter ? 'text-primary' : 'text-muted-foreground'}`}
+                                >
                                     {formatTime(chapter.startTime)}
-                                </span>
+                                </button>
                                 <span className="text-sm font-medium text-foreground">
                                     {chapter.title}
                                 </span>

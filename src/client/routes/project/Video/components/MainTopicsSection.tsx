@@ -6,6 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/client/co
 import { ChevronDown, ChevronRight, RefreshCw, LayoutList, Clock, Loader2 } from 'lucide-react';
 import { getModelById } from '@/common/ai/models';
 import { useTopicExpansion, useSubtopicExpansion } from '../hooks';
+import { useActiveTopic, useActiveKeyPoint, useSeekTo } from '@/client/features/project/video-player';
 import type { VideoTopic, TopicKeyPoint, TranscriptSegment, ChapterWithContent } from '@/apis/project/youtube/types';
 
 function formatTimestamp(seconds: number): string {
@@ -14,25 +15,17 @@ function formatTimestamp(seconds: number): string {
     return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
-function seekVideo(seconds: number) {
-    const iframe = document.querySelector('iframe[src*="youtube.com/embed"]') as HTMLIFrameElement;
-    if (iframe) {
-        const url = new URL(iframe.src);
-        url.searchParams.set('start', String(Math.floor(seconds)));
-        url.searchParams.set('autoplay', '1');
-        iframe.src = url.toString();
-    }
-}
-
 interface SubtopicItemProps {
     kp: TopicKeyPoint;
     nextTimestamp: number;
     videoId: string;
     videoTitle: string | undefined;
     chapterSegments: TranscriptSegment[] | undefined;
+    isActive: boolean;
+    onSeek: (seconds: number) => void;
 }
 
-const SubtopicItem = ({ kp, nextTimestamp, videoId, videoTitle, chapterSegments }: SubtopicItemProps) => {
+const SubtopicItem = ({ kp, nextTimestamp, videoId, videoTitle, chapterSegments, isActive, onSeek }: SubtopicItemProps) => {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
     const [showTakeaways, setShowTakeaways] = useState(false);
     const { data, isLoading, isExpanded, expand } = useSubtopicExpansion(
@@ -52,8 +45,8 @@ const SubtopicItem = ({ kp, nextTimestamp, videoId, videoTitle, chapterSegments 
         <div>
             <div className="flex items-start gap-2 text-sm">
                 <button
-                    onClick={() => seekVideo(kp.timestamp)}
-                    className="flex shrink-0 items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground mt-0.5"
+                    onClick={() => onSeek(kp.timestamp)}
+                    className={`flex shrink-0 items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] hover:text-foreground mt-0.5 ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
                 >
                     <Clock size={10} />
                     {formatTimestamp(kp.timestamp)}
@@ -63,8 +56,8 @@ const SubtopicItem = ({ kp, nextTimestamp, videoId, videoTitle, chapterSegments 
                         {showTakeaways && isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                     </span>
                     <div className="min-w-0">
-                        {kp.title && <span className="font-medium text-foreground">{kp.title}: </span>}
-                        <span className="text-muted-foreground">{kp.text}</span>
+                        {kp.title && <span className={`font-medium ${isActive ? 'text-primary' : 'text-foreground'}`}>{kp.title}: </span>}
+                        <span className={isActive ? 'text-primary' : 'text-muted-foreground'}>{kp.text}</span>
                     </div>
                 </button>
             </div>
@@ -95,9 +88,10 @@ interface TopicItemProps {
     segments: TranscriptSegment[] | undefined;
     videoTitle: string | undefined;
     chapters: ChapterWithContent[] | undefined;
+    isActive: boolean;
 }
 
-const TopicItem = ({ topic, videoId, segments, videoTitle, chapters }: TopicItemProps) => {
+const TopicItem = ({ topic, videoId, segments, videoTitle, chapters, isActive }: TopicItemProps) => {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
     const [isOpen, setIsOpen] = useState(false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
@@ -105,9 +99,11 @@ const TopicItem = ({ topic, videoId, segments, videoTitle, chapters }: TopicItem
     const matchingChapter = chapters?.find(c => c.title === topic.title);
     const { data, isLoading, isExpanded, expand } = useTopicExpansion(videoId, topic.title, segments, videoTitle, matchingChapter?.segments);
     const hasKeyPoints = topic.keyPoints && topic.keyPoints.length > 0;
+    const activeKeyPoint = useActiveKeyPoint(topic.keyPoints);
+    const seekTo = useSeekTo();
 
     return (
-        <div className="rounded-lg bg-muted/30 p-3">
+        <div className={`rounded-lg p-3 transition-colors ${isActive ? 'ring-1 ring-primary/50 bg-primary/5' : 'bg-muted/30'}`}>
             <button
                 onClick={() => setIsOpen(prev => !prev)}
                 className="flex w-full items-start gap-2 text-left"
@@ -119,7 +115,7 @@ const TopicItem = ({ topic, videoId, segments, videoTitle, chapters }: TopicItem
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{topic.title}</span>
                         <span
-                            onClick={(e) => { e.stopPropagation(); seekVideo(topic.timestamp); }}
+                            onClick={(e) => { e.stopPropagation(); seekTo(topic.timestamp); }}
                             className="flex shrink-0 items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
                         >
                             <Clock size={10} />
@@ -140,6 +136,8 @@ const TopicItem = ({ topic, videoId, segments, videoTitle, chapters }: TopicItem
                             videoId={videoId}
                             videoTitle={videoTitle}
                             chapterSegments={matchingChapter?.segments}
+                            isActive={activeKeyPoint === kp}
+                            onSeek={seekTo}
                         />
                     ))}
 
@@ -214,6 +212,7 @@ export const MainTopicsSection = ({
 }: MainTopicsSectionProps) => {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
     const [open, setOpen] = useState(true);
+    const activeTopic = useActiveTopic(topics);
 
     const modelName = modelId ? getModelById(modelId).name : undefined;
     const loading = isLoading || isRegenerating;
@@ -278,6 +277,7 @@ export const MainTopicsSection = ({
                                     segments={segments}
                                     videoTitle={videoTitle}
                                     chapters={chapters}
+                                    isActive={activeTopic === topic}
                                 />
                             ))}
                         </div>
