@@ -125,10 +125,16 @@ export interface ChapterSummary {
     summary: string;
 }
 
+export interface TopicKeyPoint {
+    text: string;
+    timestamp: number;
+}
+
 export interface VideoTopic {
     title: string;
     description: string;
     timestamp: number;
+    keyPoints: TopicKeyPoint[];
 }
 
 export interface GetVideoSummaryResponse {

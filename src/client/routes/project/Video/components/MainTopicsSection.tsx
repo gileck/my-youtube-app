@@ -32,43 +32,71 @@ interface TopicItemProps {
 }
 
 const TopicItem = ({ topic, videoId, segments, videoTitle }: TopicItemProps) => {
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle
+    const [isOpen, setIsOpen] = useState(false);
     const { data, isLoading, isExpanded, expand } = useTopicExpansion(videoId, topic.title, segments, videoTitle);
+    const hasKeyPoints = topic.keyPoints && topic.keyPoints.length > 0;
 
     return (
         <div className="rounded-lg bg-muted/30 p-3">
-            <div className="flex items-start justify-between gap-2">
+            <button
+                onClick={() => setIsOpen(prev => !prev)}
+                className="flex w-full items-start gap-2 text-left"
+            >
+                <span className="mt-0.5 shrink-0 text-muted-foreground">
+                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </span>
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{topic.title}</span>
-                        <button
-                            onClick={() => seekVideo(topic.timestamp)}
+                        <span
+                            onClick={(e) => { e.stopPropagation(); seekVideo(topic.timestamp); }}
                             className="flex shrink-0 items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
                         >
                             <Clock size={10} />
                             {formatTimestamp(topic.timestamp)}
-                        </button>
+                        </span>
                     </div>
                     <p className="mt-0.5 text-sm text-muted-foreground">{topic.description}</p>
                 </div>
-                {!isExpanded && (
-                    <Button variant="ghost" size="sm" onClick={expand} className="shrink-0 text-xs h-7 px-2">
-                        Expand
-                    </Button>
-                )}
-            </div>
-            {isExpanded && (
-                <div className="mt-2 border-t border-border pt-2">
-                    {isLoading && (
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground animate-pulse">
-                            <Loader2 size={12} className="animate-spin" />
-                            Expanding...
+            </button>
+
+            {isOpen && (
+                <div className="mt-2 ml-5 space-y-1">
+                    {hasKeyPoints && topic.keyPoints.map((kp, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm">
+                            <button
+                                onClick={() => seekVideo(kp.timestamp)}
+                                className="flex shrink-0 items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground mt-0.5"
+                            >
+                                <Clock size={10} />
+                                {formatTimestamp(kp.timestamp)}
+                            </button>
+                            <span className="text-muted-foreground">{kp.text}</span>
                         </div>
+                    ))}
+
+                    {!isExpanded && (
+                        <Button variant="ghost" size="sm" onClick={expand} className="text-xs h-6 px-2 mt-1">
+                            Expand
+                        </Button>
                     )}
-                    {data?.summary && (
-                        <div className="markdown-body text-sm">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {data.summary}
-                            </ReactMarkdown>
+
+                    {isExpanded && (
+                        <div className="mt-2 border-t border-border pt-2">
+                            {isLoading && (
+                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground animate-pulse">
+                                    <Loader2 size={12} className="animate-spin" />
+                                    Expanding...
+                                </div>
+                            )}
+                            {data?.summary && (
+                                <div className="markdown-body text-sm">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {data.summary}
+                                    </ReactMarkdown>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

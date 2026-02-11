@@ -1,10 +1,18 @@
 import { API_GET_VIDEO_SUMMARY } from '../index';
-import { AIActionType, ApiHandlerContext, GetVideoSummaryRequest, GetVideoSummaryResponse, VideoTopic } from '../types';
+import { AIActionType, ApiHandlerContext, GetVideoSummaryRequest, GetVideoSummaryResponse, VideoTopic, TopicKeyPoint } from '../types';
 import { AIModelAdapter } from '@/server/ai/baseModelAdapter';
 import { DEFAULT_MODEL_ID } from '@/common/ai/models';
 import { youtubeCache, YOUTUBE_CACHE_TTL } from '@/server/youtube/youtubeCache';
 
 const SINGLE_PASS_CHAR_LIMIT = 50000;
+
+function parseKeyPoints(raw: unknown): TopicKeyPoint[] {
+    if (!Array.isArray(raw)) return [];
+    return raw.map(kp => ({
+        text: String(kp.text || ''),
+        timestamp: Number(kp.timestamp) || 0,
+    }));
+}
 
 function parseTopicsJson(text: string): VideoTopic[] {
     const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
@@ -16,6 +24,7 @@ function parseTopicsJson(text: string): VideoTopic[] {
                 title: String(t.title || ''),
                 description: String(t.description || ''),
                 timestamp: Number(t.timestamp) || 0,
+                keyPoints: parseKeyPoints(t.keyPoints),
             }));
         }
     } catch { /* return empty */ }
@@ -114,9 +123,12 @@ Identify the main topics discussed in this video. For each topic provide:
 - title: A short descriptive title (3-8 words)
 - description: A 1-2 sentence description of what is discussed
 - timestamp: The time in seconds where this topic begins, based on the [M:SS] markers above. Use the nearest preceding marker to determine the timestamp.
+- keyPoints: An array of 2-10 key points for this topic (more for longer topics). Each key point has:
+  - text: A single concise sentence summarizing the point
+  - timestamp: The time in seconds where this point is discussed, based on the [M:SS] markers
 
 Return ONLY a JSON array, no other text. Example:
-[{"title": "Introduction to the Subject", "description": "The host introduces the main theme and sets context.", "timestamp": 0}, {"title": "Deep Dive into Feature", "description": "Detailed walkthrough of the new feature.", "timestamp": 185}]`,
+[{"title": "Introduction to the Subject", "description": "The host introduces the main theme and sets context.", "timestamp": 0, "keyPoints": [{"text": "The presenter outlines three main goals for the discussion.", "timestamp": 15}, {"text": "Background context is provided on why this topic matters.", "timestamp": 45}]}]`,
         chapter: (chapterTitle, content) =>
             `You are a helpful assistant that identifies the main topics discussed in YouTube videos.
 
@@ -130,9 +142,12 @@ For each topic provide:
 - title: A short descriptive title (3-8 words)
 - description: A 1-2 sentence description of what is discussed
 - timestamp: The time in seconds where this topic begins, based on the [M:SS] markers in the content
+- keyPoints: An array of 2-10 key points for this topic (more for longer topics). Each key point has:
+  - text: A single concise sentence summarizing the point
+  - timestamp: The time in seconds where this point is discussed
 
 Return ONLY a JSON array, no other text. Example:
-[{"title": "Topic Name", "description": "Brief description.", "timestamp": 120}]`,
+[{"title": "Topic Name", "description": "Brief description.", "timestamp": 120, "keyPoints": [{"text": "Key insight from this section.", "timestamp": 130}]}]`,
         synthesis: (videoTitle, chapterResults) => {
             const chaptersText = chapterResults
                 .map(c => `Chapter: ${c.title}\nTopics: ${c.summary}`)
@@ -149,6 +164,9 @@ For each topic provide:
 - title: A short descriptive title (3-8 words)
 - description: A 1-2 sentence description of what is discussed
 - timestamp: The time in seconds where this topic begins
+- keyPoints: An array of 2-10 key points for this topic (more for longer topics). Each key point has:
+  - text: A single concise sentence summarizing the point
+  - timestamp: The time in seconds where this point is discussed
 
 Return ONLY a JSON array, no other text.`;
         },
