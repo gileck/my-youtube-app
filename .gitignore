@@ -71,3 +71,6 @@ child-projects.json
 # npm lock file (project uses yarn)
 package-lock.json
 .telegram-bot-sessions.json
+
+# Test output
+scripts/test-topics-output/
