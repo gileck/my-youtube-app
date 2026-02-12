@@ -17,23 +17,18 @@ import type { TranscriptResponse } from './youtubeTranscriptService';
 import { formatTime } from './youtubeTranscriptService';
 import { youtubeCache, YOUTUBE_CACHE_TTL } from '../youtubeCache';
 
-let innertubePromise: Promise<Innertube> | null = null;
-
-function getInnertube(): Promise<Innertube> {
-  if (!innertubePromise) {
-    innertubePromise = Innertube.create({
-      lang: 'en',
-      location: 'US',
-      generate_session_locally: true,
-    });
-  }
-  return innertubePromise;
+function createInnertube(): Promise<Innertube> {
+  return Innertube.create({
+    lang: 'en',
+    location: 'US',
+    generate_session_locally: true,
+  });
 }
 
 export const fetchTranscriptViaCaptions = async (videoId: string): Promise<CacheResult<TranscriptResponse>> => {
   const result = await youtubeCache.withCache(
     async () => {
-      const youtube = await getInnertube();
+      const youtube = await createInnertube();
 
       const info = await youtube.getBasicInfo(videoId);
       const captionTracks = info.captions?.caption_tracks;

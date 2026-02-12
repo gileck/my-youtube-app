@@ -3,13 +3,8 @@ import { fetchTranscriptViaCaptions } from './transcript/captionsTranscriptServi
 import { fetchChapters } from './chapters/chaptersService';
 import type { Chapter, ChapterWithContent, CombinedTranscriptChapters, TranscriptSegment } from './types';
 
-/**
- * Use the captions-based workaround by default.
- * The formal getTranscript API is broken due to YouTube BotGuard attestation (Dec 2025).
- * See: https://github.com/LuanRT/YouTube.js/issues/1102
- * Set to false to revert to the formal API once youtubei.js ships a fix.
- */
-const USE_CAPTIONS_WORKAROUND = true;
+import type { CacheResult } from '@/common/cache/types';
+import type { TranscriptResponse } from './transcript/youtubeTranscriptService';
 
 const chapterFilterConfig = {
   filteredPhrases: ['sponsor', 'advertisement', 'ad break', 'promotion'],
@@ -224,6 +219,25 @@ function combineTranscriptAndChapters(
   return finalizeOutput(chaptersWithContent, transcript, videoId, options);
 }
 
+async function fetchTranscriptWithFallback(videoId: string): Promise<CacheResult<TranscriptResponse>> {
+  try {
+    const result = await fetchTranscriptViaCaptions(videoId);
+    console.log(`[transcript] Captions method succeeded for ${videoId} (${result.data.segments.length} segments, cached: ${result.isFromCache})`);
+    return result;
+  } catch (captionsError) {
+    console.warn(`[transcript] Captions method failed for ${videoId}: ${captionsError instanceof Error ? captionsError.message : String(captionsError)}`);
+    console.log(`[transcript] Falling back to formal API for ${videoId}...`);
+    try {
+      const result = await fetchTranscript(videoId);
+      console.log(`[transcript] Formal API succeeded for ${videoId} (${result.data.segments.length} segments)`);
+      return result;
+    } catch (formalError) {
+      console.error(`[transcript] Both methods failed for ${videoId}. Formal API error: ${formalError instanceof Error ? formalError.message : String(formalError)}`);
+      throw captionsError;
+    }
+  }
+}
+
 export async function getChaptersTranscripts(
   videoId: string,
   options: {
@@ -237,9 +251,8 @@ export async function getChaptersTranscripts(
   }
 ): Promise<{ data: CombinedTranscriptChapters; isFromCache: boolean }> {
   try {
-    const fetchFn = USE_CAPTIONS_WORKAROUND ? fetchTranscriptViaCaptions : fetchTranscript;
     const [transcriptResult, chaptersResult] = await Promise.all([
-      fetchFn(videoId),
+      fetchTranscriptWithFallback(videoId),
       fetchChapters(videoId),
     ]);
 
