@@ -1,5 +1,5 @@
-import { fetchTranscript } from './youtubeTranscriptService';
 import { fetchTranscriptViaCaptions } from './captionsTranscriptService';
+import { fetchTranscript } from './youtubeTranscriptService';
 import type { TranscriptResponse } from './youtubeTranscriptService';
 
 const TAG = '[remote-transcript]';
@@ -15,23 +15,23 @@ export default async function remoteTranscriptHandler(
   const handlerStart = Date.now();
   console.log(`${TAG} Starting for ${videoId}`);
 
-  // Primary: youtubei.js formal API (reliable locally, no IP blocks)
+  // Primary: captions method (works reliably from residential IP)
   try {
     const start = Date.now();
-    console.log(`${TAG} [${videoId}] Trying youtubei.js...`);
-    const result = await fetchTranscript(videoId);
+    console.log(`${TAG} [${videoId}] Trying captions...`);
+    const result = await fetchTranscriptViaCaptions(videoId);
     const ms = Date.now() - start;
-    console.log(`${TAG} [${videoId}] youtubei.js succeeded — ${result.data.segments.length} segments in ${ms}ms (total: ${Date.now() - handlerStart}ms)`);
+    console.log(`${TAG} [${videoId}] Captions succeeded — ${result.data.segments.length} segments in ${ms}ms (total: ${Date.now() - handlerStart}ms)`);
     return result.data;
   } catch (err) {
-    console.warn(`${TAG} [${videoId}] youtubei.js failed after ${Date.now() - handlerStart}ms: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`${TAG} [${videoId}] Captions failed after ${Date.now() - handlerStart}ms: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  // Fallback: captions XML parsing
+  // Fallback: youtubei.js formal API (get_transcript endpoint, needs BotGuard — may fail)
   const start = Date.now();
-  console.log(`${TAG} [${videoId}] Trying captions fallback...`);
-  const result = await fetchTranscriptViaCaptions(videoId);
+  console.log(`${TAG} [${videoId}] Trying youtubei.js fallback...`);
+  const result = await fetchTranscript(videoId);
   const ms = Date.now() - start;
-  console.log(`${TAG} [${videoId}] Captions succeeded — ${result.data.segments.length} segments in ${ms}ms (total: ${Date.now() - handlerStart}ms)`);
+  console.log(`${TAG} [${videoId}] youtubei.js succeeded — ${result.data.segments.length} segments in ${ms}ms (total: ${Date.now() - handlerStart}ms)`);
   return result.data;
 }
