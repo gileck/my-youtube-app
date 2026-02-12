@@ -220,7 +220,15 @@ function combineTranscriptAndChapters(
   return finalizeOutput(chaptersWithContent, transcript, videoId, options);
 }
 
+// Set to false to use RPC daemon exclusively for transcript fetching.
+// When true, tries captions → formal API → RPC daemon as fallback chain.
+const USE_DIRECT_TRANSCRIPT = false;
+
 async function fetchTranscriptWithFallback(videoId: string): Promise<CacheResult<TranscriptResponse>> {
+  if (!USE_DIRECT_TRANSCRIPT) {
+    return fetchTranscriptViaRpc(videoId);
+  }
+
   try {
     const result = await fetchTranscriptViaCaptions(videoId);
     console.log(`[transcript] Captions method succeeded for ${videoId} (${result.data.segments.length} segments, cached: ${result.isFromCache})`);
@@ -234,20 +242,19 @@ async function fetchTranscriptWithFallback(videoId: string): Promise<CacheResult
       return result;
     } catch (formalError) {
       console.error(`[transcript] Both methods failed for ${videoId}. Formal API error: ${formalError instanceof Error ? formalError.message : String(formalError)}`);
-      console.log(`[transcript] Falling back to RPC daemon for ${videoId}...`);
-      try {
-        const rpcResult = await callRemote<TranscriptResponse>(
-          'src/server/youtube/transcript/remoteTranscriptHandler',
-          { videoId }
-        );
-        console.log(`[transcript] RPC daemon succeeded for ${videoId} (${rpcResult.data.segments.length} segments, ${rpcResult.durationMs}ms)`);
-        return { data: rpcResult.data, isFromCache: false };
-      } catch (rpcError) {
-        console.error(`[transcript] RPC daemon also failed for ${videoId}: ${rpcError instanceof Error ? rpcError.message : String(rpcError)}`);
-        throw captionsError;
-      }
+      return fetchTranscriptViaRpc(videoId);
     }
   }
+}
+
+async function fetchTranscriptViaRpc(videoId: string): Promise<CacheResult<TranscriptResponse>> {
+  console.log(`[transcript] Using RPC daemon for ${videoId}...`);
+  const rpcResult = await callRemote<TranscriptResponse>(
+    'src/server/youtube/transcript/remoteTranscriptHandler',
+    { videoId }
+  );
+  console.log(`[transcript] RPC daemon succeeded for ${videoId} (${rpcResult.data.segments.length} segments, ${rpcResult.durationMs}ms)`);
+  return { data: rpcResult.data, isFromCache: false };
 }
 
 export async function getChaptersTranscripts(
