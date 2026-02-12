@@ -1,5 +1,5 @@
-import { fetchTranscriptViaCaptions } from './captionsTranscriptService';
 import { fetchTranscript } from './youtubeTranscriptService';
+import { fetchTranscriptViaCaptions } from './captionsTranscriptService';
 import type { TranscriptResponse } from './youtubeTranscriptService';
 
 const TAG = '[remote-transcript]';
@@ -15,24 +15,23 @@ export default async function remoteTranscriptHandler(
   const handlerStart = Date.now();
   console.log(`${TAG} Starting for ${videoId}`);
 
+  // Primary: youtubei.js formal API (reliable locally, no IP blocks)
   try {
-    const captionsStart = Date.now();
-    console.log(`${TAG} [${videoId}] Trying captions method...`);
-    const result = await fetchTranscriptViaCaptions(videoId);
-    const captionsMs = Date.now() - captionsStart;
-    const totalMs = Date.now() - handlerStart;
-    console.log(`${TAG} [${videoId}] Captions succeeded — ${result.data.segments.length} segments in ${captionsMs}ms (total: ${totalMs}ms)`);
+    const start = Date.now();
+    console.log(`${TAG} [${videoId}] Trying youtubei.js...`);
+    const result = await fetchTranscript(videoId);
+    const ms = Date.now() - start;
+    console.log(`${TAG} [${videoId}] youtubei.js succeeded — ${result.data.segments.length} segments in ${ms}ms (total: ${Date.now() - handlerStart}ms)`);
     return result.data;
   } catch (err) {
-    const captionsMs = Date.now() - handlerStart;
-    console.warn(`${TAG} [${videoId}] Captions failed after ${captionsMs}ms: ${err instanceof Error ? err.message : String(err)}`);
-
-    const formalStart = Date.now();
-    console.log(`${TAG} [${videoId}] Trying formal API...`);
-    const result = await fetchTranscript(videoId);
-    const formalMs = Date.now() - formalStart;
-    const totalMs = Date.now() - handlerStart;
-    console.log(`${TAG} [${videoId}] Formal API succeeded — ${result.data.segments.length} segments in ${formalMs}ms (total: ${totalMs}ms)`);
-    return result.data;
+    console.warn(`${TAG} [${videoId}] youtubei.js failed after ${Date.now() - handlerStart}ms: ${err instanceof Error ? err.message : String(err)}`);
   }
+
+  // Fallback: captions XML parsing
+  const start = Date.now();
+  console.log(`${TAG} [${videoId}] Trying captions fallback...`);
+  const result = await fetchTranscriptViaCaptions(videoId);
+  const ms = Date.now() - start;
+  console.log(`${TAG} [${videoId}] Captions succeeded — ${result.data.segments.length} segments in ${ms}ms (total: ${Date.now() - handlerStart}ms)`);
+  return result.data;
 }
