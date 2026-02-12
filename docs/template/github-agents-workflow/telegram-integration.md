@@ -13,6 +13,28 @@ Telegram integration provides real-time notifications and one-click actions for 
 - Separate notification channels for different event types
 - Preview deployment notifications
 
+## Universal Notification Center
+
+Telegram serves as the universal notification center for all workflow operations. Every operation -- approve, route, delete -- sends a Telegram notification from the workflow service layer (`src/server/workflow-service/`), regardless of which transport initiated the action.
+
+This means:
+- **Approve via CLI** -> Telegram notification with routing buttons
+- **Route via UI** -> Telegram info notification confirming the route
+- **Delete via Telegram** -> Telegram info notification confirming the deletion
+
+Telegram handlers themselves are now thin wrappers around the workflow service. They parse the callback query data, call the appropriate service function (`approveWorkflowItem`, `routeWorkflowItem`, `deleteWorkflowItem`), and format the response message. All business logic -- state validation, GitHub sync, adapter updates, logging -- lives in the service layer.
+
+### Two Notification Channels
+
+The workflow service sends notifications to two distinct channels based on whether admin action is required:
+
+| Channel | Env Var | Purpose | Examples |
+|---------|---------|---------|----------|
+| **Actionable** | `AGENT_TELEGRAM_CHAT_ID` | Messages requiring admin clicks/decisions | Routing buttons after approval, merge/reject buttons |
+| **Info** | `AGENT_INFO_TELEGRAM_CHAT_ID` | Confirmations and status updates (no action needed) | "Routed to Tech Design", "Deleted", auto-route confirmations |
+
+The info channel falls back gracefully: `AGENT_INFO_TELEGRAM_CHAT_ID` -> `AGENT_TELEGRAM_CHAT_ID` -> `ownerTelegramChatId`. This means projects with a single chat ID still receive all notifications.
+
 ## Notification Channels
 
 The system supports **3 separate Telegram chats** to organize notifications by type and reduce information overload:
@@ -139,10 +161,24 @@ Please review the design document.
 ✅ Design Approved #45
 
 Title: Add search functionality
-PR merged: https://github.com/user/repo/pull/123
+Design saved to S3
 Status: Tech Design → Ready for Dev
 
 Implementation will start automatically.
+```
+
+**Product Design Decision Ready (new designs with mock options):**
+```
+Agent (Product Design): Decision Ready
+Feature
+
+Issue #45: "Add dark mode"
+Options: 3
+
+Summary:
+3 design options available
+
+[Choose Recommended] [Choose Option] [View Issue] [Request Changes]
 ```
 
 **Implementation PR Created:**
@@ -417,7 +453,7 @@ Quick actions allow admins to perform workflow operations with a single button c
 
 **Approve Design:**
 - Button: `[Approve Design]` on design PR notification
-- Action: Approves and merges design PR, advances status
+- Action: Approves design (saves to S3, does NOT merge PR), advances status
 - Response: Confirmation + next phase notification
 
 **Request Changes on Design:**

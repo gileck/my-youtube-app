@@ -11,7 +11,7 @@
 
 import { useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
-import { ChevronDown, ChevronRight, ChevronsUpDown, Loader2, ExternalLink, Clock, CheckCircle, Trash2, Check, Copy, RefreshCw, Github, ArrowRightLeft } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronsUpDown, Loader2, ExternalLink, Clock, CheckCircle, Trash2, Check, Copy, RefreshCw, Github, ArrowRightLeft, Archive } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Card, CardContent } from '@/client/components/template/ui/card';
@@ -24,8 +24,10 @@ import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { useRouter } from '@/client/features';
 import { useQueryClient } from '@tanstack/react-query';
 import { useWorkflowItems, useUpdateWorkflowStatus } from './hooks';
-import { useItemDetail, useApproveItem, useDeleteItem, parseItemId } from '@/client/routes/template/ItemDetail/hooks';
+import { useItemDetail, useApproveItem, useDeleteItem, useRouteItem, parseItemId } from '@/client/routes/template/ItemDetail/hooks';
 import { useWorkflowPageStore } from './store';
+import { WorkflowActionButtons } from './WorkflowActionButtons';
+import { WorkflowHistory } from './WorkflowHistory';
 import type { TypeFilter, ViewFilter } from './store';
 import type { PendingItem, WorkflowItem } from '@/apis/template/workflow/types';
 
@@ -257,17 +259,20 @@ const ALL_STATUSES = [
     'Done',
 ] as const;
 
-function ItemPreviewDialog({ itemId, onClose }: { itemId: string | null; onClose: () => void }) {
+function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string | null; onClose: () => void; workflowItems?: WorkflowItem[] }) {
     const { navigate } = useRouter();
     const queryClient = useQueryClient();
     const { item, isLoading } = useItemDetail(itemId || undefined);
     const { approveFeature, approveBug, isPending: isApproving } = useApproveItem();
     const { deleteFeature, deleteBug, isPending: isDeleting } = useDeleteItem();
+    const { routeItem, isPending: isRouting } = useRouteItem();
     const updateStatusMutation = useUpdateWorkflowStatus();
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral confirm dialog state
     const [showApproveConfirm, setShowApproveConfirm] = useState(false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral confirm dialog state
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral post-approval routing state
+    const [showRouting, setShowRouting] = useState(false);
 
     const isFeature = item?.type === 'feature';
     const title = item
@@ -285,12 +290,23 @@ function ItemPreviewDialog({ itemId, onClose }: { itemId: string | null; onClose
         ? (isFeature ? !!item.feature!.githubIssueUrl : !!item.report!.githubIssueUrl)
         : false;
     const canApprove = isNew && !isAlreadySynced;
-    const canDelete = !isAlreadySynced;
 
     // Determine if this is a workflow item (has a non-composite ID = plain ObjectId)
     const isWorkflowItem = itemId ? !itemId.includes(':') : false;
-    // For workflow items, the itemId IS the workflow item's _id
-    const workflowItemId = isWorkflowItem ? itemId : null;
+
+    // Look up the WorkflowItem for action buttons
+    const matchedWorkflowItem = useMemo(() => {
+        if (!workflowItems || !itemId) return null;
+        // If itemId is a workflow item ID (plain ObjectId), match by id
+        if (isWorkflowItem) {
+            return workflowItems.find((wi) => wi.id === itemId) || null;
+        }
+        // If itemId is a composite sourceId, match by sourceId
+        return workflowItems.find((wi) => wi.sourceId === itemId) || null;
+    }, [workflowItems, itemId, isWorkflowItem]);
+
+    // For workflow items, use the workflow item's _id (either directly or from matched item)
+    const workflowItemId = isWorkflowItem ? itemId : (matchedWorkflowItem?.id || null);
 
     const { mongoId } = itemId ? parseItemId(itemId) : { mongoId: '' };
 
@@ -326,17 +342,55 @@ function ItemPreviewDialog({ itemId, onClose }: { itemId: string | null; onClose
 
     const handleApprove = async () => {
         try {
+            let result;
             if (isFeature) {
-                await approveFeature(mongoId);
+                result = await approveFeature(mongoId);
             } else {
-                await approveBug(mongoId);
+                result = await approveBug(mongoId);
             }
-            toast.success('Item approved and synced to GitHub');
             setShowApproveConfirm(false);
+            queryClient.invalidateQueries({ queryKey: ['workflow-items'] });
+
+            // Features that need routing: show inline routing buttons
+            if (isFeature && result?.needsRouting) {
+                toast.success('Approved — choose where to route');
+                setShowRouting(true);
+                return;
+            }
+
+            toast.success('Item approved and synced to GitHub');
+            onClose();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to approve');
+        }
+    };
+
+    const handleApproveToBacklog = async () => {
+        try {
+            if (isFeature) {
+                await approveFeature(mongoId, true);
+            } else {
+                await approveBug(mongoId, true);
+            }
+            toast.success('Approved and moved to Backlog');
             onClose();
             queryClient.invalidateQueries({ queryKey: ['workflow-items'] });
         } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Failed to approve');
+        }
+    };
+
+    const handleRoute = async (status: string) => {
+        try {
+            const sourceType = isFeature ? 'feature' : 'bug';
+            const sourceId = itemId!;
+            await routeItem({ sourceId, sourceType, status });
+            toast.success(`Routed to ${status}`);
+            onClose();
+            setShowRouting(false);
+            queryClient.invalidateQueries({ queryKey: ['workflow-items'] });
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to route');
         }
     };
 
@@ -367,7 +421,7 @@ function ItemPreviewDialog({ itemId, onClose }: { itemId: string | null; onClose
     };
 
     return (
-        <Dialog open={!!itemId} onOpenChange={(open) => { if (!open) onClose(); }}>
+        <Dialog open={!!itemId} onOpenChange={(open) => { if (!open) { setShowRouting(false); onClose(); } }}>
             <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-12">
@@ -380,18 +434,43 @@ function ItemPreviewDialog({ itemId, onClose }: { itemId: string | null; onClose
                 ) : (
                     <>
                         <DialogHeader>
-                            <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                                <StatusBadge label={isFeature ? 'Feature' : 'Bug'} colorKey={item.type} />
-                                <StatusBadge label={status} />
-                                {isFeature && item.feature!.priority && (
-                                    <StatusBadge label={item.feature!.priority} colorKey={item.feature!.priority} />
-                                )}
-                                {isFeature && item.feature!.source && (
-                                    <StatusBadge label={`via ${item.feature!.source}`} colorKey="source" />
-                                )}
-                                {!isFeature && item.report!.source && (
-                                    <StatusBadge label={`via ${item.report!.source}`} colorKey="source" />
-                                )}
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="flex flex-wrap items-center gap-1.5 mb-2 min-w-0">
+                                    <StatusBadge label={isFeature ? 'Feature' : 'Bug'} colorKey={item.type} />
+                                    <StatusBadge label={status} />
+                                    {isFeature && item.feature!.priority && (
+                                        <StatusBadge label={item.feature!.priority} colorKey={item.feature!.priority} />
+                                    )}
+                                    {isFeature && item.feature!.source && (
+                                        <StatusBadge label={`via ${item.feature!.source}`} colorKey="source" />
+                                    )}
+                                    {!isFeature && item.report!.source && (
+                                        <StatusBadge label={`via ${item.report!.source}`} colorKey="source" />
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0 mr-6">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={handleCopyDetails}
+                                        title="Copy details"
+                                    >
+                                        <Copy className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={() => {
+                                            onClose();
+                                            navigate(`/admin/item/${itemId}`);
+                                        }}
+                                        title="View full details"
+                                    >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
                             </div>
                             <DialogTitle className="text-base leading-snug pr-6">{title}</DialogTitle>
                             {createdAt && (
@@ -457,8 +536,10 @@ function ItemPreviewDialog({ itemId, onClose }: { itemId: string | null; onClose
                         </div>
 
                         <div className="pt-3 border-t -mx-6 px-6 flex flex-col gap-2">
-                            {workflowItemId && (
+                            {/* Move to status (active pipeline items) */}
+                            {workflowItemId && matchedWorkflowItem?.status && (
                                 <div className="flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground shrink-0">{matchedWorkflowItem.status}</span>
                                     <ArrowRightLeft className="h-4 w-4 text-muted-foreground shrink-0" />
                                     <Select
                                         value=""
@@ -467,7 +548,7 @@ function ItemPreviewDialog({ itemId, onClose }: { itemId: string | null; onClose
                                         <SelectTrigger className="h-8 text-xs flex-1">
                                             <SelectValue placeholder="Move to..." />
                                         </SelectTrigger>
-                                        <SelectContent>
+                                        <SelectContent className="z-[70]">
                                             {ALL_STATUSES.map((s) => (
                                                 <SelectItem key={s} value={s}>{s}</SelectItem>
                                             ))}
@@ -475,59 +556,80 @@ function ItemPreviewDialog({ itemId, onClose }: { itemId: string | null; onClose
                                     </Select>
                                 </div>
                             )}
-                            {(canApprove || canDelete) && (
-                                <div className="flex gap-2">
-                                    {canApprove && (
-                                        <Button
-                                            className="flex-1"
-                                            onClick={() => setShowApproveConfirm(true)}
-                                            disabled={isApproving || isDeleting}
-                                        >
-                                            {isApproving ? (
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <CheckCircle className="mr-2 h-4 w-4" />
-                                            )}
-                                            Approve
-                                        </Button>
-                                    )}
-                                    {canDelete && (
-                                        <Button
-                                            className="flex-1"
-                                            variant="destructive"
-                                            onClick={() => setShowDeleteConfirm(true)}
-                                            disabled={isApproving || isDeleting}
-                                        >
-                                            {isDeleting ? (
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <Trash2 className="mr-2 h-4 w-4" />
-                                            )}
-                                            Delete
-                                        </Button>
-                                    )}
+                            {matchedWorkflowItem && matchedWorkflowItem.content?.number && (
+                                <WorkflowActionButtons
+                                    item={matchedWorkflowItem}
+                                    onActionComplete={onClose}
+                                    excludeActions={workflowItemId ? ['mark-done'] : undefined}
+                                />
+                            )}
+
+                            {matchedWorkflowItem?.history?.length ? (
+                                <WorkflowHistory entries={matchedWorkflowItem.history} />
+                            ) : null}
+
+                            {/* Post-approval routing (inline) */}
+                            {showRouting && (
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-xs text-muted-foreground">Choose where to route:</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {['Product Development', 'Product Design', 'Technical Design', 'Ready for development'].map((dest) => (
+                                            <Button
+                                                key={dest}
+                                                variant="outline"
+                                                size="sm"
+                                                disabled={isRouting}
+                                                onClick={() => handleRoute(dest)}
+                                            >
+                                                {isRouting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+                                                {dest}
+                                            </Button>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
-                            <div className="flex gap-2">
-                                <Button
-                                    className="flex-1"
-                                    variant="outline"
-                                    onClick={() => {
-                                        onClose();
-                                        navigate(`/admin/item/${itemId}`);
-                                    }}
-                                >
-                                    <ExternalLink className="mr-2 h-4 w-4" />
-                                    View Full Details
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={handleCopyDetails}
-                                >
-                                    <Copy className="mr-2 h-4 w-4" />
-                                    Copy
-                                </Button>
-                            </div>
+
+                            {/* Pending item actions (approve) */}
+                            {!showRouting && canApprove && (
+                                <div className="flex gap-2">
+                                    <Button
+                                        className="flex-1"
+                                        onClick={() => setShowApproveConfirm(true)}
+                                        disabled={isApproving || isDeleting}
+                                    >
+                                        {isApproving ? (
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <CheckCircle className="mr-2 h-4 w-4" />
+                                        )}
+                                        Approve
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleApproveToBacklog}
+                                        disabled={isApproving || isDeleting}
+                                    >
+                                        <Archive className="mr-2 h-4 w-4" />
+                                        Backlog
+                                    </Button>
+                                </div>
+                            )}
+
+                            {/* Delete (always available) */}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => setShowDeleteConfirm(true)}
+                                disabled={isApproving || isDeleting}
+                            >
+                                {isDeleting ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                )}
+                                Delete
+                            </Button>
                         </div>
                     </>
                 )}
@@ -1039,6 +1141,7 @@ export function WorkflowItems() {
             <ItemPreviewDialog
                 itemId={selectedItemId}
                 onClose={() => setSelectedItemId(null)}
+                workflowItems={data?.workflowItems}
             />
 
             <ConfirmDialog

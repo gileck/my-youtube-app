@@ -1,13 +1,23 @@
+import { useState, useMemo } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/client/components/template/ui/button';
 import { Card, CardContent } from '@/client/components/template/ui/card';
 import { toast } from '@/client/components/template/ui/toast';
 import { useRouter } from '@/client/features/template/router';
-import { useItemDetail, useApproveItem, useDeleteItem, parseItemId } from './hooks';
-import { ItemDetailHeader } from './components/ItemDetailHeader';
+import { ErrorDisplay } from '@/client/features/template/error-tracking';
+import { updateWorkflowStatus } from '@/apis/template/workflow/client';
+import { useItemDetail, useApproveItem, useDeleteItem, useRouteItem, parseItemId } from './hooks';
+import type { ItemType } from './hooks';
 import { ItemDetailActions } from './components/ItemDetailActions';
+import { ItemDetailHeader } from './components/ItemDetailHeader';
+import { useWorkflowItems } from '@/client/routes/template/Workflow/hooks';
+import { WorkflowHistory } from '@/client/routes/template/Workflow/WorkflowHistory';
+import type { WorkflowHistoryEntry } from '@/apis/template/workflow/types';
+
+const EMPTY_HISTORY: WorkflowHistoryEntry[] = [];
 
 interface ItemDetailPageProps {
     id: string;
@@ -19,6 +29,35 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
     const { item, isLoading, error } = useItemDetail(id);
     const { approveFeature, approveBug, isPending: isApproving } = useApproveItem();
     const { deleteFeature, deleteBug, isPending: isDeleting } = useDeleteItem();
+    const { routeItem, isPending: isRouting } = useRouteItem();
+    const queryClient = useQueryClient();
+
+    const updateStatusMutation = useMutation({
+        mutationFn: async ({ sourceId, sourceType, status }: { sourceId: string; sourceType: 'feature' | 'bug'; status: string }) => {
+            const result = await updateWorkflowStatus({ sourceId, sourceType, status });
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data;
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['workflow-items'] });
+        },
+    });
+
+    const { data: workflowData } = useWorkflowItems();
+
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral routing dialog state after approve
+    const [showRoutingDialog, setShowRoutingDialog] = useState(false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral item type for routing
+    const [routingItemType, setRoutingItemType] = useState<ItemType>('feature');
+
+    // Look up workflow item history from cached workflow data
+    const historyEntries = useMemo(() => {
+        if (!workflowData?.workflowItems) return EMPTY_HISTORY;
+        const matched = workflowData.workflowItems.find((wi) => wi.sourceId === id);
+        return matched?.history || EMPTY_HISTORY;
+    }, [workflowData?.workflowItems, id]);
 
     const navigateBack = () => {
         navigate('/admin/workflow');
@@ -40,14 +79,12 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
     if (error) {
         return (
             <div className="container mx-auto max-w-4xl px-3 py-6">
-                <Card>
-                    <CardContent className="pt-6">
-                        <p className="text-destructive">Error loading item: {error.message}</p>
-                        <Button variant="outline" className="mt-4" onClick={() => navigateBack()}>
-                            <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
-                        </Button>
-                    </CardContent>
-                </Card>
+                <ErrorDisplay
+                    error={error}
+                    title="Failed to load item"
+                    onBack={navigateBack}
+                    backLabel="Go Back"
+                />
             </div>
         );
     }
@@ -85,16 +122,46 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
 
     const handleApprove = async () => {
         try {
+            let needsRouting = false;
             if (isFeature) {
-                await approveFeature(mongoId);
+                const result = await approveFeature(mongoId);
+                needsRouting = !!result?.needsRouting;
             } else {
-                await approveBug(mongoId);
+                const result = await approveBug(mongoId);
+                needsRouting = !!result?.needsRouting;
             }
-            toast.success('Item approved and synced to GitHub');
-            navigateBack();
+
+            if (needsRouting) {
+                toast.success('Item approved! Choose where to route it.');
+                setRoutingItemType(type);
+                setShowRoutingDialog(true);
+            } else {
+                toast.success('Item approved and synced to GitHub');
+                navigateBack();
+            }
         } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Failed to approve');
         }
+    };
+
+    const handleRoute = async (routeStatus: string) => {
+        try {
+            await routeItem({
+                sourceId: mongoId,
+                sourceType: routingItemType,
+                status: routeStatus,
+            });
+            toast.success(`Routed to ${routeStatus}`);
+            setShowRoutingDialog(false);
+            navigateBack();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to route');
+        }
+    };
+
+    const handleSkipRouting = () => {
+        setShowRoutingDialog(false);
+        navigateBack();
     };
 
     const handleDelete = async () => {
@@ -108,6 +175,16 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
             navigateBack();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Failed to delete');
+        }
+    };
+
+    const handleStatusChange = async (newStatus: string) => {
+        try {
+            const sourceType = isFeature ? 'feature' as const : 'bug' as const;
+            await updateStatusMutation.mutateAsync({ sourceId: mongoId, sourceType, status: newStatus });
+            toast.success(`Moved to ${newStatus}`);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to update status');
         }
     };
 
@@ -146,6 +223,15 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* History */}
+            {historyEntries.length > 0 && (
+                <Card className="mb-6">
+                    <CardContent className="pt-6">
+                        <WorkflowHistory entries={historyEntries} />
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Bug-specific details */}
             {!isFeature && item.report!.errorMessage && (
@@ -194,8 +280,14 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
                 isAlreadySynced={isAlreadySynced}
                 isApproving={isApproving}
                 isDeleting={isDeleting}
+                isRouting={isRouting}
+                showRoutingDialog={showRoutingDialog}
+                routingItemType={routingItemType}
                 onApprove={handleApprove}
                 onDelete={handleDelete}
+                onRoute={handleRoute}
+                onSkipRouting={handleSkipRouting}
+                onStatusChange={handleStatusChange}
             />
         </div>
     );

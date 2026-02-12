@@ -59,7 +59,6 @@ import {
     runWithLogContext,
     logExecutionStart,
     logExecutionEnd,
-    logGitHubAction,
     logError,
 } from '../../lib/logging';
 import {
@@ -165,7 +164,7 @@ const PR_REVIEW_OUTPUT_FORMAT = {
 // MAIN LOGIC
 // ============================================================
 
-async function processItem(
+export async function processItem(
     processable: ProcessableItem,
     options: PRReviewOptions,
     adapter: Awaited<ReturnType<typeof getProjectManagementAdapter>>,
@@ -346,8 +345,11 @@ async function processItem(
                     ? REVIEW_STATUSES.approved
                     : REVIEW_STATUSES.requestChanges;
 
-                logGitHubAction(logCtx, 'issue_updated', `Set Review Status to ${newReviewStatus}`);
-                await adapter.updateItemReviewStatus(item.id, newReviewStatus);
+                // Update review status via workflow service
+                const { completeAgentRun } = await import('@/server/workflow-service');
+                await completeAgentRun(issueNumber, 'pr-review', {
+                    reviewStatus: newReviewStatus,
+                });
                 console.log(`  Updated review status to: ${newReviewStatus}`);
 
                 // Handle approval flow: generate commit message, save to PR comment, notify admin
@@ -457,7 +459,7 @@ async function processItem(
             }
 
             // Log execution end
-            logExecutionEnd(logCtx, {
+            await logExecutionEnd(logCtx, {
                 success: true,
                 toolCallsCount: 0, // Not tracked in UsageStats
                 totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
@@ -478,7 +480,7 @@ async function processItem(
 
         // Log error
         logError(logCtx, error instanceof Error ? error : errorMsg, true);
-        logExecutionEnd(logCtx, {
+        await logExecutionEnd(logCtx, {
             success: false,
             toolCallsCount: 0,
             totalTokens: 0,
@@ -667,12 +669,14 @@ async function main(): Promise<void> {
     await run(options);
 }
 
-// Run
-main()
-    .then(() => {
-        process.exit(0);
-    })
-    .catch((error) => {
-        console.error('Fatal error:', error);
-        process.exit(1);
-    });
+// Run (skip when imported as a module in tests)
+if (!process.env.VITEST) {
+    main()
+        .then(() => {
+            process.exit(0);
+        })
+        .catch((error) => {
+            console.error('Fatal error:', error);
+            process.exit(1);
+        });
+}

@@ -67,6 +67,25 @@ export interface WorkflowItemArtifacts {
     taskBranch?: string;
     commitMessages?: CommitMessageRecord[];
     decision?: DecisionArtifactRecord;
+    finalPrNumber?: number;
+    lastMergedPr?: {
+        prNumber: number;
+        phase?: string;       // e.g. "2/3"
+        mergedAt: string;     // ISO timestamp
+    };
+    revertPrNumber?: number;  // pending revert PR after revertMerge()
+}
+
+// ============================================================
+// HISTORY TYPES
+// ============================================================
+
+export interface HistoryEntry {
+    action: string;           // 'feature_approved', 'routed', 'pr_merged', etc.
+    description: string;      // 'Routed to Technical Design'
+    timestamp: string;        // ISO 8601
+    actor?: string;           // 'admin', 'agent:tech-design', 'system'
+    metadata?: Record<string, unknown>;
 }
 
 // ============================================================
@@ -93,6 +112,7 @@ export interface WorkflowItemDocument {
     githubIssueTitle?: string;
     labels?: string[];
     artifacts?: WorkflowItemArtifacts;
+    history?: HistoryEntry[];
     createdAt: Date;
     updatedAt: Date;
 }

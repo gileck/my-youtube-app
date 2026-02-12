@@ -9,6 +9,7 @@ import { agentConfig, getIssueUrl, getPrUrl, getProjectUrl } from './config';
 import { appConfig } from '../../app.config';
 import { generateClarificationToken } from '@/apis/template/clarification/utils';
 import { generateDecisionToken } from '@/apis/template/agent-decision/utils';
+import { addHistoryEntry } from '@/server/database/collections/template/workflow-items';
 
 // ============================================================
 // TELEGRAM API
@@ -740,7 +741,7 @@ export async function notifyAgentStarted(
     phase: string,
     title: string,
     issueNumber: number,
-    mode: 'new' | 'feedback' | 'clarification',
+    mode: 'new' | 'feedback' | 'clarification' | 'post-selection',
     itemType: 'bug' | 'feature' = 'feature'
 ): Promise<SendResult> {
     const status =
@@ -748,7 +749,9 @@ export async function notifyAgentStarted(
             ? '🚀 Started'
             : mode === 'feedback'
               ? '🔄 Addressing Feedback'
-              : '💬 Resuming After Clarification';
+              : mode === 'post-selection'
+                ? '📝 Writing Design for Chosen Option'
+                : '💬 Resuming After Clarification';
     const issueUrl = getIssueUrl(issueNumber);
     const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
     const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
@@ -758,6 +761,15 @@ ${typeEmoji} ${typeLabel}
 
 📋 ${escapeHtml(title)}
 🔗 Issue #${issueNumber}`;
+
+    // Log history (fire-and-forget, non-critical)
+    const modeLabel = mode === 'new' ? 'started' : mode === 'feedback' ? 'addressing feedback' : mode === 'post-selection' ? 'writing design for chosen option' : 'resuming after clarification';
+    addHistoryEntry(issueNumber, {
+        action: 'agent_started',
+        description: `Agent ${phase} ${modeLabel}`,
+        timestamp: new Date().toISOString(),
+        actor: `agent:${phase.toLowerCase().replace(/ /g, '-')}`,
+    }).catch(() => {});
 
     return sendToInfoChannel(message, buildViewIssueButton(issueUrl));
 }
@@ -782,7 +794,7 @@ export async function notifyDesignPRReady(
         : designType === 'product'
             ? 'Product Design'
             : 'Technical Design';
-    const status = isRevision ? '🔄 PR Updated' : '✅ PR Ready';
+    const status = isRevision ? '🔄 Design Updated' : '✅ Design Ready';
     const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
     const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
 
@@ -795,11 +807,11 @@ ${typeEmoji} ${typeLabel}
 🔗 Issue #${issueNumber} → PR #${prNumber}
 📊 Status: ${designLabel} (Waiting for Review)
 
-${isRevision ? 'Design updated based on feedback. ' : ''}Review and merge to proceed.${summarySection}`;
+${isRevision ? 'Design updated based on feedback. ' : ''}Review and approve to proceed.${summarySection}`;
 
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [[
-            { text: '✅ Approve & Merge', callback_data: `design_approve:${prNumber}:${issueNumber}:${designType}` },
+            { text: '✅ Approve', callback_data: `design_approve:${prNumber}:${issueNumber}:${designType}` },
             { text: '📝 Request Changes', callback_data: `design_changes:${prNumber}:${issueNumber}:${designType}` },
         ], [
             { text: '👀 View PR', url: prUrl },
@@ -1000,11 +1012,12 @@ export async function notifyDecisionNeeded(
     summary: string,
     optionsCount: number,
     itemType: 'bug' | 'feature' = 'feature',
-    isRevision: boolean = false
+    isRevision: boolean = false,
+    previewUrl?: string | null
 ): Promise<SendResult> {
     const issueUrl = getIssueUrl(issueNumber);
 
-    const status = isRevision ? '🔄 Revised' : '✅ Decision Ready';
+    const status = isRevision ? '🔄 Options Updated' : '✅ Design Options Ready';
     const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
     const typeLabel = itemType === 'bug' ? 'Bug' : 'Feature';
 
@@ -1017,28 +1030,44 @@ export async function notifyDecisionNeeded(
         ? summary.slice(0, 2800) + '...'
         : summary;
 
+    const previewNote = previewUrl
+        ? `\n🌐 <a href="${escapeHtml(previewUrl)}">Preview Deployment</a> (may take a few moments to be ready)`
+        : '';
+
     const message = `<b>Agent (${escapeHtml(phase)}):</b> ${status}
 ${typeEmoji} ${typeLabel}
 
 📋 ${escapeHtml(title)}
 🔗 Issue #${issueNumber}
-📊 Options: ${optionsCount}
+📊 Options: ${optionsCount}${previewNote}
 
 <b>Summary:</b>
 ${escapeHtml(truncatedSummary)}`;
 
-    const buttons: InlineKeyboardMarkup = {
-        inline_keyboard: [
-            [
-                { text: '🔧 Choose Option', url: decisionUrl },
-            ],
-            [
-                { text: '📋 View Issue', url: issueUrl },
-            ],
-            [
-                { text: '📝 Request Changes', callback_data: `changes:${issueNumber}` },
-            ],
+    const buttonRows: InlineButton[][] = [
+        [
+            { text: '✅ Choose Recommended', callback_data: `chooserec:${issueNumber}` },
         ],
+        [
+            { text: '🔧 All Options', url: decisionUrl },
+        ],
+    ];
+
+    if (previewUrl) {
+        buttonRows.push([
+            { text: '🌐 Preview Mocks', url: previewUrl },
+        ]);
+    }
+
+    buttonRows.push([
+        { text: '📋 View Issue', url: issueUrl },
+    ]);
+    buttonRows.push([
+        { text: '📝 Request Changes', callback_data: `changes:${issueNumber}` },
+    ]);
+
+    const buttons: InlineKeyboardMarkup = {
+        inline_keyboard: buttonRows,
     };
 
     return sendToAdmin(message, buttons);

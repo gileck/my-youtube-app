@@ -22,7 +22,7 @@ export interface MetadataFieldConfig {
     /** Display label */
     label: string;
     /** How to render this field */
-    type: 'badge' | 'text' | 'file-list' | 'tag';
+    type: 'badge' | 'text' | 'file-list' | 'tag' | 'preview-link';
     /**
      * Optional color map for badge type.
      * Maps values to Tailwind color classes.
@@ -52,6 +52,8 @@ export interface RoutingConfig {
     statusMap: Record<string, string>;
     /** Maps custom destination values to project status names (for custom solutions) */
     customDestinationStatusMap?: Record<string, string>;
+    /** When true, selection stays in the current phase (sets Decision Submitted) instead of routing to a new status */
+    continueAfterSelection?: boolean;
 }
 
 // ============================================================
@@ -127,8 +129,10 @@ export interface GetDecisionResponse {
  * Selected option from the UI
  */
 export interface DecisionSelection {
-    /** ID of the selected option (or "custom" for custom solution) */
-    selectedOptionId: string;
+    /** ID of the selected option (or "custom" for custom solution). Optional when chooseRecommended is true. */
+    selectedOptionId?: string;
+    /** Set to true to auto-select the recommended option (selectedOptionId not needed) */
+    chooseRecommended?: boolean;
     /** Custom solution text (required if selectedOptionId is "custom") */
     customSolution?: string;
     /** Custom destination value (required if selectedOptionId is "custom" and destinations exist) */

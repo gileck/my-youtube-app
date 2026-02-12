@@ -141,12 +141,14 @@ export interface DeleteFeatureRequestResponse {
 // Approve feature request (creates GitHub issue)
 export interface ApproveFeatureRequestRequest {
     requestId: string;
+    toBacklog?: boolean;
 }
 
 export interface ApproveFeatureRequestResponse {
     featureRequest?: FeatureRequestClient;
     githubIssueUrl?: string;
     githubIssueNumber?: number;
+    needsRouting?: boolean;
     error?: string;
 }
 

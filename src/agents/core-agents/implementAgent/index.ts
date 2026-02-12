@@ -106,7 +106,7 @@ import { createImplementationPR, postFeedbackResponse } from './prManagement';
 // MAIN LOGIC
 // ============================================================
 
-async function processItem(
+export async function processItem(
     processable: ProcessableItem,
     options: ImplementOptions,
     adapter: Awaited<ReturnType<typeof getProjectManagementAdapter>>,
@@ -666,13 +666,14 @@ async function processItem(
             }
         }
 
-        // Update status to PR Review and set review status
-        await adapter.updateItemStatus(item.id, STATUSES.prReview);
+        // Update status to PR Review and set review status via workflow service
+        const { completeAgentRun } = await import('@/server/workflow-service');
+        await completeAgentRun(issueNumber, 'implementation', {
+            status: STATUSES.prReview,
+            reviewStatus: REVIEW_STATUSES.waitingForReview,
+        });
         console.log(`  Status updated to: ${STATUSES.prReview}`);
-        if (adapter.hasReviewStatusField()) {
-            await adapter.updateItemReviewStatus(item.id, REVIEW_STATUSES.waitingForReview);
-            console.log(`  Review Status updated to: ${REVIEW_STATUSES.waitingForReview}`);
-        }
+        console.log(`  Review Status updated to: ${REVIEW_STATUSES.waitingForReview}`);
 
         // Log GitHub actions
         if (mode === 'new' && prNumber) {
@@ -693,7 +694,7 @@ async function processItem(
         console.log(`  ✅ Switched back to ${defaultBranch}`);
 
         // Log execution end
-        logExecutionEnd(logCtx, {
+        await logExecutionEnd(logCtx, {
             success: true,
             toolCallsCount: 0, // Not tracked in UsageStats
             totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
@@ -716,7 +717,7 @@ async function processItem(
             }
 
             // Log execution end
-            logExecutionEnd(logCtx, {
+            await logExecutionEnd(logCtx, {
                 success: false,
                 toolCallsCount: 0,
                 totalTokens: 0,
@@ -950,12 +951,14 @@ async function main(): Promise<void> {
     }
 }
 
-// Run
-main()
-    .then(() => {
-        process.exit(0);
-    })
-    .catch((error) => {
-        console.error('Fatal error:', error);
-        process.exit(1);
-    });
+// Run (skip when imported as a module in tests)
+if (!process.env.VITEST) {
+    main()
+        .then(() => {
+            process.exit(0);
+        })
+        .catch((error) => {
+            console.error('Fatal error:', error);
+            process.exit(1);
+        });
+}

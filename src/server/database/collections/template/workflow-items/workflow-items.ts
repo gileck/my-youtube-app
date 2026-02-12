@@ -9,6 +9,7 @@ import type {
     CommitMessageRecord,
     DecisionArtifactRecord,
     ImplementationStatus,
+    HistoryEntry,
 } from './types';
 import type { DecisionSelection } from '@/apis/template/agent-decision/types';
 
@@ -372,6 +373,84 @@ export const deleteWorkflowItemBySourceRef = async (
 };
 
 /**
+ * Set the final PR number in artifacts
+ */
+export const setFinalPrNumber = async (
+    issueNumber: number,
+    prNumber: number
+): Promise<void> => {
+    const collection = await getWorkflowItemsCollection();
+    await collection.updateOne(
+        { githubIssueNumber: issueNumber },
+        {
+            $set: {
+                'artifacts.finalPrNumber': prNumber,
+                updatedAt: new Date(),
+            },
+        }
+    );
+};
+
+/**
+ * Set the last merged PR info in artifacts
+ */
+export const setLastMergedPr = async (
+    issueNumber: number,
+    prNumber: number,
+    phase?: string
+): Promise<void> => {
+    const collection = await getWorkflowItemsCollection();
+    await collection.updateOne(
+        { githubIssueNumber: issueNumber },
+        {
+            $set: {
+                'artifacts.lastMergedPr': {
+                    prNumber,
+                    ...(phase ? { phase } : {}),
+                    mergedAt: new Date().toISOString(),
+                },
+                updatedAt: new Date(),
+            },
+        }
+    );
+};
+
+/**
+ * Set the pending revert PR number in artifacts
+ */
+export const setRevertPrNumber = async (
+    issueNumber: number,
+    revertPrNumber: number
+): Promise<void> => {
+    const collection = await getWorkflowItemsCollection();
+    await collection.updateOne(
+        { githubIssueNumber: issueNumber },
+        {
+            $set: {
+                'artifacts.revertPrNumber': revertPrNumber,
+                updatedAt: new Date(),
+            },
+        }
+    );
+};
+
+/**
+ * Clear the pending revert PR number from artifacts
+ */
+export const clearRevertPrNumber = async (
+    issueNumber: number
+): Promise<void> => {
+    const collection = await getWorkflowItemsCollection();
+    await collection.updateOne(
+        { githubIssueNumber: issueNumber },
+        {
+            $unset: { 'artifacts.revertPrNumber': '' },
+            $set: { updatedAt: new Date() },
+        }
+    );
+};
+
+/**
  * Set the decision selection within the decision artifact
  */
 export const setDecisionSelection = async (
@@ -386,6 +465,23 @@ export const setDecisionSelection = async (
                 'artifacts.decision.selection': selection,
                 updatedAt: new Date(),
             },
+        }
+    );
+};
+
+/**
+ * Append a history entry to a workflow item
+ */
+export const addHistoryEntry = async (
+    issueNumber: number,
+    entry: HistoryEntry
+): Promise<void> => {
+    const collection = await getWorkflowItemsCollection();
+    await collection.updateOne(
+        { githubIssueNumber: issueNumber },
+        {
+            $push: { history: entry },
+            $set: { updatedAt: new Date() },
         }
     );
 };

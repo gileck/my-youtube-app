@@ -29,6 +29,24 @@ export interface WorkflowItemContent {
     labels?: string[];
 }
 
+export interface WorkflowItemPRData {
+    currentPrNumber?: number;
+    designPrs?: { type: string; prNumber: number }[];
+    hasPendingDecision?: boolean;
+    finalPrNumber?: number;
+    lastMergedPrNumber?: number;
+    lastMergedPrPhase?: string;
+    revertPrNumber?: number;
+}
+
+export interface WorkflowHistoryEntry {
+    action: string;
+    description: string;
+    timestamp: string;
+    actor?: string;
+    metadata?: Record<string, unknown>;
+}
+
 export interface WorkflowItem {
     id: string;
     /** Composite ID for navigation to detail page (e.g., "feature:mongoId" or "report:mongoId") */
@@ -39,6 +57,8 @@ export interface WorkflowItem {
     reviewStatus: string | null;
     content: WorkflowItemContent | null;
     implementationPhase?: string | null;
+    prData?: WorkflowItemPRData;
+    history?: WorkflowHistoryEntry[];
     createdAt: string | null;
 }
 
@@ -55,11 +75,52 @@ export interface ListWorkflowItemsResponse {
 }
 
 export interface UpdateWorkflowStatusRequest {
-    itemId: string;
+    itemId?: string;
     status: string;
+    /** Alternative to itemId: look up workflow item by source document ID */
+    sourceId?: string;
+    /** Required if sourceId is provided */
+    sourceType?: 'feature' | 'bug';
 }
 
 export interface UpdateWorkflowStatusResponse {
     success?: boolean;
     error?: string;
+}
+
+// ============================================================================
+// Workflow Action API
+// ============================================================================
+
+export type WorkflowActionType =
+    | 'review-approve'
+    | 'review-changes'
+    | 'review-reject'
+    | 'request-changes-pr'
+    | 'clarification-received'
+    | 'choose-recommended'
+    | 'mark-done'
+    | 'approve-design'
+    | 'merge-design-pr'
+    | 'merge-pr'
+    | 'merge-final-pr'
+    | 'revert-pr'
+    | 'merge-revert-pr'
+    | 'request-changes-design-pr'
+    | 'undo-action';
+
+export interface WorkflowActionRequest {
+    action: WorkflowActionType;
+    issueNumber: number;
+    prNumber?: number;
+    designType?: string;
+    phase?: string;
+    originalAction?: WorkflowActionType;
+    timestamp?: number;
+}
+
+export interface WorkflowActionResponse {
+    success?: boolean;
+    error?: string;
+    message?: string;
 }

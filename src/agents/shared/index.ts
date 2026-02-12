@@ -60,6 +60,7 @@ export type {
 export type {
     ProductDevelopmentOutput,
     ProductDesignOutput,
+    MockOption,
     TechDesignOutput,
     ImplementationOutput,
     ImplementationPhase,
@@ -74,6 +75,8 @@ export type {
 export {
     PRODUCT_DEVELOPMENT_OUTPUT_FORMAT,
     PRODUCT_DESIGN_OUTPUT_FORMAT,
+    PRODUCT_DESIGN_PHASE1_OUTPUT_FORMAT,
+    PRODUCT_DESIGN_PHASE2_OUTPUT_FORMAT,
     TECH_DESIGN_OUTPUT_FORMAT,
     IMPLEMENTATION_OUTPUT_FORMAT,
     CLARIFICATION_SCHEMA_PROPERTIES,
@@ -131,6 +134,7 @@ export {
     buildProductDesignPrompt,
     buildProductDesignRevisionPrompt,
     buildProductDesignClarificationPrompt,
+    buildProductDesignPostSelectionPrompt,
     buildTechDesignPrompt,
     buildTechDesignRevisionPrompt,
     buildTechDesignClarificationPrompt,
@@ -208,3 +212,7 @@ export {
     pushBranch,
     getDefaultBranch,
 } from './git-utils';
+
+// Git Adapter (DI)
+export { getGitAdapter, setGitAdapter, resetGitAdapter } from './git-adapter';
+export type { GitAdapter } from './git-adapter';

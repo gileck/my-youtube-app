@@ -190,6 +190,13 @@ export class AppProjectAdapter implements ProjectManagementAdapter {
             githubIssueUrl: context.githubIssueUrl,
             githubIssueTitle: context.title,
             labels: context.labels,
+            artifacts: {}, // Initialize empty artifacts object to ensure $push operations work correctly
+            history: [{
+                action: 'created',
+                description: `Workflow item created for ${context.type}`,
+                timestamp: now.toISOString(),
+                actor: 'system',
+            }],
             createdAt: now,
             updatedAt: now,
         });

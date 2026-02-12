@@ -136,6 +136,7 @@ export interface UpdateInvestigationResponse {
 // Approve bug report and sync to GitHub
 export interface ApproveBugReportRequest {
     reportId: string;
+    toBacklog?: boolean;
 }
 
 export interface ApproveBugReportResponse {
@@ -144,6 +145,7 @@ export interface ApproveBugReportResponse {
     githubIssueUrl?: string;
     githubIssueNumber?: number;
     githubProjectItemId?: string;
+    needsRouting?: boolean;
 }
 
 // Re-export types for convenience
