@@ -1,6 +1,6 @@
 import { API_GET_VIDEO_SUMMARY } from '../index';
 import { AIActionType, ApiHandlerContext, GetVideoSummaryRequest, GetVideoSummaryResponse, VideoTopic, TopicKeyPoint } from '../types';
-import { AIModelAdapter } from '@/server/ai/baseModelAdapter';
+import { AIModelAdapter } from '@/server/template/ai/baseModelAdapter';
 import { DEFAULT_MODEL_ID } from '@/common/ai/models';
 import { youtubeCache, YOUTUBE_CACHE_TTL } from '@/server/youtube/youtubeCache';
 

@@ -1,5 +1,5 @@
 import { createCache } from '@/common/cache';
-import { fsCacheProvider, s3CacheProvider } from '@/server/cache/providers';
+import { fsCacheProvider, s3CacheProvider } from '@/server/template/cache/providers';
 import { appConfig } from '@/app.config';
 
 const provider = appConfig.cacheType === 's3' ? s3CacheProvider : fsCacheProvider;
