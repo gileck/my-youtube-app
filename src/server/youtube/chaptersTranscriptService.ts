@@ -5,7 +5,7 @@ import type { Chapter, ChapterWithContent, CombinedTranscriptChapters, Transcrip
 
 import type { CacheResult } from '@/common/cache/types';
 import type { TranscriptResponse } from './transcript/youtubeTranscriptService';
-import { callRemote } from '@/server/rpc';
+import { callRemote } from '@/server/template/rpc';
 
 const chapterFilterConfig = {
   filteredPhrases: ['sponsor', 'advertisement', 'ad break', 'promotion'],

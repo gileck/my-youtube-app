@@ -1,5 +1,5 @@
 {
-  "name": "app-template-ai",
+  "name": "my-youtube-app",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -61,7 +61,7 @@
     "test-clarification-flow": "tsx scripts/template/test-clarification-flow.ts",
     "task": "tsx task-manager/tasks-cli.ts",
     "agent-workflow": "tsx src/agents/cli/index.ts",
-    "daemon": "tsx src/server/rpc/daemon.ts",
+    "daemon": "tsx src/server/template/rpc/daemon.ts",
     "test:e2e": "vitest run --config vitest.config.ts",
     "pull": "git pull --no-edit && git push"
   },
