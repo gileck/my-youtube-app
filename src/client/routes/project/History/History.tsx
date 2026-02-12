@@ -1,8 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { History as HistoryIcon, X } from 'lucide-react';
 import { Button } from '@/client/components/template/ui/button';
-import { VideoCard, VideoListItem, ViewModeToggle } from '@/client/features/project/video-card';
-import type { ViewMode } from '@/client/features/project/video-card';
+import { VideoCard, VideoListItem, ViewModeToggle, useViewModeStore } from '@/client/features/project/video-card';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
 import { useHistoryStore } from '@/client/features/project/history';
 import type { HistoryVideo } from '@/client/features/project/history';
@@ -26,8 +25,8 @@ export const History = () => {
     const history = useHistoryStore((s) => s.history);
     const removeFromHistory = useHistoryStore((s) => s.removeFromHistory);
 
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle for view mode
-    const [viewMode, setViewMode] = useState<ViewMode>('grid');
+    const viewMode = useViewModeStore((s) => s.viewMode);
+    const setViewMode = useViewModeStore((s) => s.setViewMode);
 
     const videos = useMemo(
         () => history.map((h) => ({ ...toSearchResult(h), historyId: h.id })),

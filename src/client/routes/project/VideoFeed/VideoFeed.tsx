@@ -1,8 +1,6 @@
-import { useState } from 'react';
 import { Button } from '@/client/components/template/ui/button';
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
-import { VideoGrid, VideoGridSkeleton } from '@/client/features/project/video-card';
-import type { ViewMode } from '@/client/features/project/video-card';
+import { VideoGrid, VideoGridSkeleton, useViewModeStore } from '@/client/features/project/video-card';
 import { useVideoFeedStore } from './store';
 import { useVideoFeed } from './hooks';
 import { VideoFeedFilters, ManageSubscriptions } from './components';
@@ -21,8 +19,8 @@ export const VideoFeed = () => {
     const duration = useVideoFeedStore((s) => s.duration);
     const minViews = useVideoFeedStore((s) => s.minViews);
 
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle for view mode
-    const [viewMode, setViewMode] = useState<ViewMode>('grid');
+    const viewMode = useViewModeStore((s) => s.viewMode);
+    const setViewMode = useViewModeStore((s) => s.setViewMode);
 
     const { videos, isLoading, hasError, error, hasSubscriptions } = useVideoFeed({
         sortBy,

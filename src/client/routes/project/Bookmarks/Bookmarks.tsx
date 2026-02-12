@@ -1,9 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Bookmark } from 'lucide-react';
 import { Button } from '@/client/components/template/ui/button';
-import { VideoGrid } from '@/client/features/project/video-card';
-import { ViewModeToggle } from '@/client/features/project/video-card';
-import type { ViewMode } from '@/client/features/project/video-card';
+import { VideoGrid, ViewModeToggle, useViewModeStore } from '@/client/features/project/video-card';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
 import { useBookmarksStore } from '@/client/features/project/bookmarks';
 import type { BookmarkedVideo } from '@/client/features/project/bookmarks';
@@ -52,8 +50,8 @@ function sortBookmarks(bookmarks: BookmarkedVideo[], sort: SortOption): Bookmark
 export const Bookmarks = () => {
     const bookmarks = useBookmarksStore((s) => s.bookmarks);
 
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle for view mode
-    const [viewMode, setViewMode] = useState<ViewMode>('grid');
+    const viewMode = useViewModeStore((s) => s.viewMode);
+    const setViewMode = useViewModeStore((s) => s.setViewMode);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle for sort
     const [sortBy, setSortBy] = useState<SortOption>('recently-added');
 

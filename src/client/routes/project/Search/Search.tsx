@@ -5,8 +5,7 @@ import { LinearProgress } from '@/client/components/template/ui/linear-progress'
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { useRouter } from '@/client/features';
 import { Search as SearchIcon, X } from 'lucide-react';
-import { VideoGrid } from '@/client/features/project/video-card';
-import type { ViewMode } from '@/client/features/project/video-card';
+import { VideoGrid, useViewModeStore } from '@/client/features/project/video-card';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
 import { parseRelativeTimeToSeconds } from '@/common/utils/parseRelativeTime';
 import { useSearchStore } from './store';
@@ -39,8 +38,8 @@ export const Search = () => {
     const [pageNumber, setPageNumber] = useState(1);
     // eslint-disable-next-line state-management/prefer-state-architecture -- accumulated results for load-more pagination
     const [accumulatedVideos, setAccumulatedVideos] = useState<YouTubeVideoSearchResult[]>([]);
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle for view mode
-    const [viewMode, setViewMode] = useState<ViewMode>('grid');
+    const viewMode = useViewModeStore((s) => s.viewMode);
+    const setViewMode = useViewModeStore((s) => s.setViewMode);
 
     // Sync query from URL param
     useEffect(() => {
