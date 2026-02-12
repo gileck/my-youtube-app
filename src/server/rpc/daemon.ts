@@ -24,13 +24,9 @@ function sleep(ms: number): Promise<void> {
 
 async function processJob(): Promise<boolean> {
   pollCount++;
-  vlog(`Poll #${pollCount} — checking for pending jobs...`);
 
   const job = await claimNextPendingJob();
-  if (!job) {
-    vlog(`Poll #${pollCount} — no pending jobs`);
-    return false;
-  }
+  if (!job) return false;
 
   const { handlerPath, secret } = job;
   const jobId = job._id.toHexString();
