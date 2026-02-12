@@ -5,6 +5,7 @@ import type { Chapter, ChapterWithContent, CombinedTranscriptChapters, Transcrip
 
 import type { CacheResult } from '@/common/cache/types';
 import type { TranscriptResponse } from './transcript/youtubeTranscriptService';
+import { callRemote } from '@/server/rpc';
 
 const chapterFilterConfig = {
   filteredPhrases: ['sponsor', 'advertisement', 'ad break', 'promotion'],
@@ -233,7 +234,18 @@ async function fetchTranscriptWithFallback(videoId: string): Promise<CacheResult
       return result;
     } catch (formalError) {
       console.error(`[transcript] Both methods failed for ${videoId}. Formal API error: ${formalError instanceof Error ? formalError.message : String(formalError)}`);
-      throw captionsError;
+      console.log(`[transcript] Falling back to RPC daemon for ${videoId}...`);
+      try {
+        const rpcResult = await callRemote<TranscriptResponse>(
+          'src/server/youtube/transcript/remoteTranscriptHandler',
+          { videoId }
+        );
+        console.log(`[transcript] RPC daemon succeeded for ${videoId} (${rpcResult.data.segments.length} segments, ${rpcResult.durationMs}ms)`);
+        return { data: rpcResult.data, isFromCache: false };
+      } catch (rpcError) {
+        console.error(`[transcript] RPC daemon also failed for ${videoId}: ${rpcError instanceof Error ? rpcError.message : String(rpcError)}`);
+        throw captionsError;
+      }
     }
   }
 }

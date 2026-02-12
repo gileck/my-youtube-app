@@ -1,0 +1,35 @@
+{
+  "name": "RPC Daemon (my-youtube-app)",
+  "uniqueKey": "my-youtube-app:rpc-daemon",
+  "groupName": "my-youtube-app",
+  "description": "Polls MongoDB for remote function calls and executes locally (residential IP)",
+  "script": {
+    "path": "daemon",
+    "args": [],
+    "interpreter": "npm",
+    "workingDirectory": "/Users/gileck/Projects/my-youtube-app"
+  },
+  "schedule": {
+    "type": "daemon"
+  },
+  "daemon": {
+    "restartDelayMs": 5000,
+    "maxRestarts": 5,
+    "restartWindowMs": 300000,
+    "healthyRunMs": 60000
+  },
+  "notifications": {
+    "onStart": false,
+    "onSuccess": false,
+    "onFailure": true
+  },
+  "options": {
+    "enabled": true,
+    "allowParallelRuns": false,
+    "requiresInternet": true
+  },
+  "output": {
+    "logFile": "/Users/gileck/Projects/my-youtube-app/agent-tasks/rpc-daemon/runs/output.log",
+    "statusFile": "/Users/gileck/Projects/my-youtube-app/agent-tasks/rpc-daemon/runs/status.json"
+  }
+}
