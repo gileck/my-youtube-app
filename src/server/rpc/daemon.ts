@@ -1,5 +1,6 @@
 import '@/agents/shared/loadEnv';
 import { resolve } from 'path';
+import { existsSync } from 'fs';
 import { ensureRpcIndexes, claimNextPendingJob, completeRpcJob, failRpcJob } from './collection';
 import { closeDbConnection } from '@/server/database/connection';
 
@@ -30,6 +31,17 @@ async function processJob(): Promise<boolean> {
   if (!fullPath.startsWith(allowedBase)) {
     await failRpcJob(job._id, `Invalid handler path: "${handlerPath}"`);
     console.error(`[rpc-daemon] Rejected invalid path: ${handlerPath}`);
+    return true;
+  }
+
+  const fileExists =
+    existsSync(fullPath + '.ts') ||
+    existsSync(fullPath + '.js') ||
+    existsSync(fullPath + '/index.ts') ||
+    existsSync(fullPath + '/index.js');
+  if (!fileExists) {
+    await failRpcJob(job._id, `Handler file not found: "${handlerPath}"`);
+    console.error(`[rpc-daemon] Rejected missing file: ${handlerPath}`);
     return true;
   }
 
