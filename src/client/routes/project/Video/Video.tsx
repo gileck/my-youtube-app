@@ -11,7 +11,7 @@ export const Video = () => {
     const videoId = routeParams.videoId ?? '';
 
     const { data: detailsData, isLoading: detailsLoading, error: detailsError } = useVideoDetails(videoId);
-    const { data: transcriptData, isLoading: transcriptLoading } = useTranscript(videoId);
+    const { data: transcriptData, isLoading: transcriptLoading, error: transcriptError } = useTranscript(videoId);
 
     const video = detailsData?.video;
     useAddToHistory(video);
@@ -181,10 +181,8 @@ export const Video = () => {
                             </div>
                         )}
 
-                        {!transcriptLoading && transcript?.error && (
-                            <p className="text-xs text-muted-foreground">
-                                Transcript unavailable: {transcript.error}
-                            </p>
+                        {!transcriptLoading && transcriptError && (
+                            <ErrorDisplay error={transcriptError} title="Transcript unavailable" variant="inline" />
                         )}
                     </div>
                 </>
