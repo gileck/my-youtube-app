@@ -30,10 +30,16 @@ export async function callRemote<TResult>(
     throw new Error(`RPC handler not found on disk: "${handlerPath}"`);
   }
 
+  const secret = process.env.RPC_SECRET;
+  if (!secret) {
+    throw new Error('RPC_SECRET env var is not set');
+  }
+
   const now = new Date();
   const jobId = await createRpcJob({
     handlerPath,
     args,
+    secret,
     status: 'pending',
     createdAt: now,
     expiresAt: new Date(now.getTime() + ttlMs),

@@ -6,6 +6,7 @@ export interface RpcJobDocument {
   _id: ObjectId;
   handlerPath: string;
   args: Record<string, unknown>;
+  secret: string;
   status: RpcJobStatus;
   result?: unknown;
   error?: string;
@@ -18,6 +19,7 @@ export interface RpcJobDocument {
 export interface RpcJobCreate {
   handlerPath: string;
   args: Record<string, unknown>;
+  secret: string;
   status: RpcJobStatus;
   createdAt: Date;
   expiresAt: Date;

@@ -15,8 +15,15 @@ async function processJob(): Promise<boolean> {
   const job = await claimNextPendingJob();
   if (!job) return false;
 
-  const { handlerPath } = job;
+  const { handlerPath, secret } = job;
   console.log(`[rpc-daemon] Processing job ${job._id.toHexString()} → ${handlerPath}`);
+
+  const expectedSecret = process.env.RPC_SECRET;
+  if (!expectedSecret || secret !== expectedSecret) {
+    await failRpcJob(job._id, 'Invalid or missing RPC secret');
+    console.error(`[rpc-daemon] Rejected job ${job._id.toHexString()}: bad secret`);
+    return true;
+  }
 
   const fullPath = resolve(process.cwd(), handlerPath);
   const allowedBase = resolve(process.cwd(), 'src/server/');
