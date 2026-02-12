@@ -8,7 +8,6 @@ const POLL_INTERVAL_MS = 2_000;
 const verbose = process.argv.includes('--verbose');
 
 let running = true;
-let pollCount = 0;
 
 function log(msg: string): void {
   console.log(`[rpc-daemon] ${msg}`);
@@ -23,8 +22,6 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function processJob(): Promise<boolean> {
-  pollCount++;
-
   const job = await claimNextPendingJob();
   if (!job) return false;
 

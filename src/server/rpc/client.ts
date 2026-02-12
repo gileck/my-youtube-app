@@ -1,9 +1,9 @@
 import { resolve } from 'path';
 import { existsSync } from 'fs';
-import { createRpcJob, findRpcJobById } from './collection';
+import { createRpcJob, findRpcJobById, findRecentJob } from './collection';
 import type { CallRemoteOptions, RpcResult } from './types';
 
-const DEFAULT_TIMEOUT_MS = 25_000;
+const DEFAULT_TIMEOUT_MS = 55_000;
 const DEFAULT_POLL_INTERVAL_MS = 500;
 const DEFAULT_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -35,15 +35,25 @@ export async function callRemote<TResult>(
     throw new Error('RPC_SECRET env var is not set');
   }
 
-  const now = new Date();
-  const jobId = await createRpcJob({
-    handlerPath,
-    args,
-    secret,
-    status: 'pending',
-    createdAt: now,
-    expiresAt: new Date(now.getTime() + ttlMs),
-  });
+  // Reuse a recent job for the same handler+args if one exists
+  const existing = await findRecentJob(handlerPath, args);
+  let jobId = existing?._id;
+
+  if (existing?.status === 'completed') {
+    return { data: existing.result as TResult, durationMs: 0 };
+  }
+
+  if (!jobId) {
+    const now = new Date();
+    jobId = await createRpcJob({
+      handlerPath,
+      args,
+      secret,
+      status: 'pending',
+      createdAt: now,
+      expiresAt: new Date(now.getTime() + ttlMs),
+    });
+  }
 
   const start = Date.now();
   const deadline = start + timeoutMs;

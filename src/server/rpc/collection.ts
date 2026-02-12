@@ -35,6 +35,22 @@ export async function claimNextPendingJob(): Promise<RpcJobDocument | null> {
   );
 }
 
+export async function findRecentJob(
+  handlerPath: string,
+  args: Record<string, unknown>
+): Promise<RpcJobDocument | null> {
+  const col = await getCollection();
+  return col.findOne(
+    {
+      handlerPath,
+      args,
+      status: { $in: ['pending', 'processing', 'completed'] },
+      expiresAt: { $gt: new Date() },
+    },
+    { sort: { createdAt: -1 } }
+  );
+}
+
 export async function completeRpcJob(id: ObjectId, result: unknown): Promise<void> {
   const col = await getCollection();
   await col.updateOne(
