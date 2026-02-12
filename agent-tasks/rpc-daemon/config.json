@@ -5,7 +5,7 @@
   "description": "Polls MongoDB for remote function calls and executes locally (residential IP)",
   "script": {
     "path": "daemon",
-    "args": [],
+    "args": ["--verbose"],
     "interpreter": "npm",
     "workingDirectory": "/Users/gileck/Projects/my-youtube-app"
   },

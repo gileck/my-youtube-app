@@ -5,26 +5,48 @@ import { ensureRpcIndexes, claimNextPendingJob, completeRpcJob, failRpcJob } fro
 import { closeDbConnection } from '@/server/database/connection';
 
 const POLL_INTERVAL_MS = 2_000;
+const verbose = process.argv.includes('--verbose');
 
 let running = true;
+let pollCount = 0;
+
+function log(msg: string): void {
+  console.log(`[rpc-daemon] ${msg}`);
+}
+
+function vlog(msg: string): void {
+  if (verbose) console.log(`[rpc-daemon] ${msg}`);
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
 async function processJob(): Promise<boolean> {
+  pollCount++;
+  vlog(`Poll #${pollCount} — checking for pending jobs...`);
+
   const job = await claimNextPendingJob();
-  if (!job) return false;
+  if (!job) {
+    vlog(`Poll #${pollCount} — no pending jobs`);
+    return false;
+  }
 
   const { handlerPath, secret } = job;
-  console.log(`[rpc-daemon] Processing job ${job._id.toHexString()} → ${handlerPath}`);
+  const jobId = job._id.toHexString();
+  log(`Claimed job ${jobId}`);
+  vlog(`  handler: ${handlerPath}`);
+  vlog(`  args: ${JSON.stringify(job.args)}`);
+  vlog(`  created: ${job.createdAt.toISOString()}`);
+  vlog(`  expires: ${job.expiresAt.toISOString()}`);
 
   const expectedSecret = process.env.RPC_SECRET;
   if (!expectedSecret || secret !== expectedSecret) {
     await failRpcJob(job._id, 'Invalid or missing RPC secret');
-    console.error(`[rpc-daemon] Rejected job ${job._id.toHexString()}: bad secret`);
+    console.error(`[rpc-daemon] Rejected job ${jobId}: bad secret`);
     return true;
   }
+  vlog(`  secret: valid`);
 
   const fullPath = resolve(process.cwd(), handlerPath);
   const allowedBase = resolve(process.cwd(), 'src/server/');
@@ -33,6 +55,7 @@ async function processJob(): Promise<boolean> {
     console.error(`[rpc-daemon] Rejected invalid path: ${handlerPath}`);
     return true;
   }
+  vlog(`  path check: within src/server/`);
 
   const fileExists =
     existsSync(fullPath + '.ts') ||
@@ -44,9 +67,11 @@ async function processJob(): Promise<boolean> {
     console.error(`[rpc-daemon] Rejected missing file: ${handlerPath}`);
     return true;
   }
+  vlog(`  file check: exists on disk`);
 
   const start = Date.now();
   try {
+    vlog(`  importing ${fullPath}...`);
     const mod = await import(fullPath);
     const handler = mod.default;
 
@@ -54,26 +79,30 @@ async function processJob(): Promise<boolean> {
       throw new Error(`Handler at "${handlerPath}" has no default export function`);
     }
 
+    vlog(`  executing handler...`);
     const result = await handler(job.args);
     const durationMs = Date.now() - start;
 
     await completeRpcJob(job._id, result);
-    console.log(`[rpc-daemon] Completed ${job._id.toHexString()} in ${durationMs}ms`);
+    log(`Completed ${jobId} in ${durationMs}ms`);
   } catch (err) {
     const durationMs = Date.now() - start;
     const errorMsg = err instanceof Error ? err.message : String(err);
 
     await failRpcJob(job._id, errorMsg);
-    console.error(`[rpc-daemon] Failed ${job._id.toHexString()} after ${durationMs}ms: ${errorMsg}`);
+    console.error(`[rpc-daemon] Failed ${jobId} after ${durationMs}ms: ${errorMsg}`);
   }
 
   return true;
 }
 
 async function pollLoop(): Promise<void> {
-  console.log(`[rpc-daemon] Starting — polling every ${POLL_INTERVAL_MS / 1000}s`);
+  log(`Starting — polling every ${POLL_INTERVAL_MS / 1000}s${verbose ? ' (verbose)' : ''}`);
+  vlog(`RPC_SECRET: ${process.env.RPC_SECRET ? 'set (' + process.env.RPC_SECRET.slice(0, 8) + '...)' : 'NOT SET'}`);
+  vlog(`Working directory: ${process.cwd()}`);
+
   await ensureRpcIndexes();
-  console.log('[rpc-daemon] Indexes ensured');
+  log('Indexes ensured');
 
   while (running) {
     try {
@@ -87,11 +116,11 @@ async function pollLoop(): Promise<void> {
     }
   }
 
-  console.log('[rpc-daemon] Stopped');
+  log('Stopped');
 }
 
 function handleShutdown(signal: string): void {
-  console.log(`[rpc-daemon] Received ${signal}, shutting down...`);
+  log(`Received ${signal}, shutting down...`);
   running = false;
 }
 
