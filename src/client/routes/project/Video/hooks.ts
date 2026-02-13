@@ -4,6 +4,7 @@ import { getVideoDetails, getTranscript, getVideoSummary } from '@/apis/project/
 import { useQueryDefaults } from '@/client/query/defaults';
 import { recordApiCall, recordApiError } from '@/client/features/project/cache-stats';
 import { useVideoUIToggle } from '@/client/features/project/video-ui-state';
+import { useSettingsStore } from '@/client/features/template/settings';
 import type { AIActionType, GetVideoDetailsResponse, GetTranscriptResponse, GetVideoSummaryResponse, TranscriptSegment, ChapterWithContent } from '@/apis/project/youtube/types';
 
 const TIMESTAMP_INTERVAL_SECONDS = 30;
@@ -74,6 +75,7 @@ export function useTranscript(videoId: string) {
 function useVideoAIAction(actionType: AIActionType, videoId: string, segments: TranscriptSegment[] | undefined, title: string | undefined, chapters: ChapterWithContent[] | undefined) {
     const queryDefaults = useQueryDefaults();
     const queryClient = useQueryClient();
+    const aiModel = useSettingsStore((s) => s.settings.aiModel);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral loading indicator
     const [isRegenerating, setIsRegenerating] = useState(false);
     const [isEnabled, setIsEnabled] = useVideoUIToggle(videoId, `aiAction:${actionType}`, false);
@@ -99,7 +101,7 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
         queryKey,
         queryFn: async (): Promise<GetVideoSummaryResponse> => {
             try {
-                const response = await getVideoSummary({ videoId, transcript, title: title ?? '', chapters: chapterData, actionType });
+                const response = await getVideoSummary({ videoId, transcript, title: title ?? '', chapters: chapterData, actionType, modelId: aiModel });
                 if (response.data?.error) {
                     throw new Error(response.data.error);
                 }
@@ -122,7 +124,7 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
         setIsRegenerating(true);
         queryClient.setQueryData(queryKey, undefined);
         try {
-            const response = await getVideoSummary({ videoId, transcript, title: title ?? '', chapters: chapterData, bypassCache: true, actionType });
+            const response = await getVideoSummary({ videoId, transcript, title: title ?? '', chapters: chapterData, bypassCache: true, actionType, modelId: aiModel });
             if (response.data?.error) {
                 throw new Error(response.data.error);
             }
@@ -152,6 +154,7 @@ export function useVideoTopics(videoId: string, segments: TranscriptSegment[] | 
 
 export function useTopicExpansion(videoId: string, topicTitle: string, segments: TranscriptSegment[] | undefined, videoTitle: string | undefined, chapterSegments?: TranscriptSegment[], storeKey?: string) {
     const queryDefaults = useQueryDefaults();
+    const aiModel = useSettingsStore((s) => s.settings.aiModel);
     const [storedEnabled, setStoredEnabled] = useVideoUIToggle(videoId, storeKey ?? '', false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral trigger flag
     const [localEnabled, setLocalEnabled] = useState(false);
@@ -168,7 +171,7 @@ export function useTopicExpansion(videoId: string, topicTitle: string, segments:
             try {
                 const response = await getVideoSummary({
                     videoId, transcript, title: videoTitle ?? '',
-                    actionType: 'topic-expand', topicTitle,
+                    actionType: 'topic-expand', topicTitle, modelId: aiModel,
                 });
                 if (response.data?.error) {
                     throw new Error(response.data.error);
@@ -191,6 +194,7 @@ export function useTopicExpansion(videoId: string, topicTitle: string, segments:
 
 export function useSubtopicExpansion(videoId: string, subtopicTitle: string, chapterSegments: TranscriptSegment[] | undefined, startTime: number, endTime: number, videoTitle: string | undefined, storeKey?: string) {
     const queryDefaults = useQueryDefaults();
+    const aiModel = useSettingsStore((s) => s.settings.aiModel);
     const [storedEnabled, setStoredEnabled] = useVideoUIToggle(videoId, storeKey ?? '', false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral trigger flag
     const [localEnabled, setLocalEnabled] = useState(false);
@@ -212,7 +216,7 @@ export function useSubtopicExpansion(videoId: string, subtopicTitle: string, cha
             try {
                 const response = await getVideoSummary({
                     videoId, transcript, title: videoTitle ?? '',
-                    actionType: 'subtopic-expand', topicTitle: subtopicTitle,
+                    actionType: 'subtopic-expand', topicTitle: subtopicTitle, modelId: aiModel,
                 });
                 if (response.data?.error) {
                     throw new Error(response.data.error);

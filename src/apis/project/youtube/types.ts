@@ -118,6 +118,7 @@ export interface GetVideoSummaryRequest {
     bypassCache?: boolean;
     actionType?: AIActionType;
     topicTitle?: string;
+    modelId?: string;
 }
 
 export interface ChapterSummary {

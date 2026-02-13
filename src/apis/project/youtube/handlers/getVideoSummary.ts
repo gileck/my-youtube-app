@@ -200,7 +200,7 @@ export const getVideoSummary = async (
         }
 
         const actionType = request.actionType ?? 'summary';
-        const modelId = DEFAULT_MODEL_ID;
+        const modelId = request.modelId || DEFAULT_MODEL_ID;
         const adapter = new AIModelAdapter(modelId);
 
         // topic-expand: always single prompt, separate cache key
