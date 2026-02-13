@@ -1,11 +1,11 @@
 {
-  "name": "App Template AI",
-  "short_name": "App Template",
-  "description": "A custom SPA application with PWA capabilities",
+  "name": "My YouTube App",
+  "short_name": "YouTube App",
+  "description": "A YouTube companion app for managing and watching videos",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "theme_color": "#6C3CE1",
   "orientation": "portrait",
   "icons": [
     {
