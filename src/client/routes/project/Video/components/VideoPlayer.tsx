@@ -162,7 +162,7 @@ export const VideoPlayer = ({ videoId }: VideoPlayerProps) => {
         <div ref={sentinelRef} className="aspect-video w-full">
             {/* Minimized compact bar */}
             {showMini && isMinimized && (
-                <div className="!fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-lg bg-card px-3 py-2 shadow-2xl border border-border">
+                <div className="!fixed bottom-20 sm:bottom-4 right-4 z-50 flex items-center gap-2 rounded-lg bg-card px-3 py-2 shadow-2xl border border-border">
                     <button onClick={togglePlayPause} className="text-foreground hover:text-primary">
                         {isPlaying ? <Pause size={16} /> : <Play size={16} />}
                     </button>
@@ -178,7 +178,7 @@ export const VideoPlayer = ({ videoId }: VideoPlayerProps) => {
             {/* Video player container */}
             <div className={`[&_iframe]:!w-full [&_iframe]:!h-full ${
                 showMini
-                    ? `!fixed bottom-4 right-4 z-50 w-80 aspect-video shadow-2xl rounded-lg overflow-hidden ${isMinimized ? 'invisible' : ''}`
+                    ? `!fixed bottom-20 sm:bottom-4 right-4 z-50 w-80 aspect-video shadow-2xl rounded-lg overflow-hidden ${isMinimized ? 'invisible' : ''}`
                     : 'relative w-full h-full overflow-hidden rounded-lg bg-foreground'
             }`}>
                 <div className={`absolute top-1 right-1 z-10 flex items-center gap-1 ${showMini && !isMinimized ? '' : 'hidden'}`}>
