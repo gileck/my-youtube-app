@@ -1,5 +1,6 @@
 import { useRouter } from '@/client/features';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Bookmark, BookmarkCheck } from 'lucide-react';
+import { useBookmarkToggle } from '@/client/features/project/bookmarks/hooks';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
 import { formatDuration, formatViewCount, formatPublishedDate } from './formatUtils';
 
@@ -9,6 +10,7 @@ interface VideoCardProps {
 
 export const VideoCard = ({ video }: VideoCardProps) => {
     const { navigate } = useRouter();
+    const { isBookmarked, toggle } = useBookmarkToggle(video);
 
     const handleChannelClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -58,14 +60,20 @@ export const VideoCard = ({ video }: VideoCardProps) => {
                             {formatViewCount(video.viewCount)}
                             {video.publishedAt && ` · ${formatPublishedDate(video.publishedAt)}`}
                         </span>
+                        <button
+                            className="ml-auto flex-shrink-0 hover:text-foreground p-2 -m-2"
+                            onClick={(e) => { e.stopPropagation(); toggle(); }}
+                        >
+                            {isBookmarked ? <BookmarkCheck size={14} className="text-primary" /> : <Bookmark size={14} />}
+                        </button>
                         <a
                             href={`https://www.youtube.com/watch?v=${video.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="ml-auto flex-shrink-0 hover:text-foreground"
+                            className="flex-shrink-0 hover:text-foreground p-2 -m-2"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <ExternalLink size={12} />
+                            <ExternalLink size={14} />
                         </a>
                     </p>
                 </div>
