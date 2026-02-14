@@ -141,11 +141,10 @@ export const VideoPlayer = ({ videoId }: VideoPlayerProps) => {
         return () => observer.disconnect();
     }, []);
 
-    // Reset dismissed/minimized state when user scrolls back to the player
+    // Reset dismissed state when user scrolls back to the player
     useEffect(() => {
         if (!isOutOfView) {
             setIsDismissed(false);
-            setIsMinimized(false);
         }
     }, [isOutOfView]);
 
@@ -162,37 +161,37 @@ export const VideoPlayer = ({ videoId }: VideoPlayerProps) => {
         <div ref={sentinelRef} className="aspect-video w-full">
             {/* Minimized compact bar */}
             {showMini && isMinimized && (
-                <div className="!fixed bottom-20 sm:bottom-4 right-4 z-50 flex items-center gap-2 rounded-lg bg-card px-3 py-2 shadow-2xl border border-border">
-                    <button onClick={togglePlayPause} className="text-foreground hover:text-primary">
-                        {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                <div className="!fixed bottom-20 sm:bottom-4 right-2 sm:right-4 z-50 flex items-center gap-3 sm:gap-2 rounded-lg bg-card px-4 sm:px-3 py-3 sm:py-2 shadow-2xl border border-border">
+                    <button onClick={togglePlayPause} className="min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-foreground hover:text-primary">
+                        {isPlaying ? <Pause className="size-5 sm:size-4" /> : <Play className="size-5 sm:size-4" />}
                     </button>
-                    <span className="text-xs text-muted-foreground tabular-nums">{formatTimestamp(currentTime)}</span>
-                    <button onClick={() => setIsMinimized(false)} className="text-muted-foreground hover:text-foreground">
-                        <ChevronUp size={14} />
+                    <span className="text-sm sm:text-xs text-muted-foreground tabular-nums">{formatTimestamp(currentTime)}</span>
+                    <button onClick={() => setIsMinimized(false)} className="min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-muted-foreground hover:text-foreground">
+                        <ChevronUp className="size-5 sm:size-3.5" />
                     </button>
-                    <button onClick={() => setIsDismissed(true)} className="text-muted-foreground hover:text-foreground">
-                        <X size={14} />
+                    <button onClick={() => setIsDismissed(true)} className="min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-muted-foreground hover:text-foreground">
+                        <X className="size-5 sm:size-3.5" />
                     </button>
                 </div>
             )}
             {/* Video player container */}
             <div className={`[&_iframe]:!w-full [&_iframe]:!h-full ${
                 showMini
-                    ? `!fixed bottom-20 sm:bottom-4 right-4 z-50 w-80 aspect-video shadow-2xl rounded-lg overflow-hidden ${isMinimized ? 'invisible' : ''}`
+                    ? `!fixed bottom-20 sm:bottom-4 right-2 sm:right-4 z-50 w-[calc(100vw-1rem)] sm:w-80 aspect-video shadow-2xl rounded-lg overflow-hidden ${isMinimized ? 'invisible' : ''}`
                     : 'relative w-full h-full overflow-hidden rounded-lg bg-foreground'
             }`}>
-                <div className={`absolute top-1 right-1 z-10 flex items-center gap-1 ${showMini && !isMinimized ? '' : 'hidden'}`}>
+                <div className={`absolute top-2 right-2 sm:top-1 sm:right-1 z-10 flex items-center gap-2 sm:gap-1 ${showMini && !isMinimized ? '' : 'hidden'}`}>
                     <button
                         onClick={() => setIsMinimized(true)}
-                        className="rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                        className="rounded-full bg-black/60 p-2 sm:p-1 text-white hover:bg-black/80"
                     >
-                        <ChevronDown size={14} />
+                        <ChevronDown className="size-5 sm:size-3.5" />
                     </button>
                     <button
                         onClick={() => setIsDismissed(true)}
-                        className="rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                        className="rounded-full bg-black/60 p-2 sm:p-1 text-white hover:bg-black/80"
                     >
-                        <X size={14} />
+                        <X className="size-5 sm:size-3.5" />
                     </button>
                 </div>
                 <div id={containerIdRef.current} className="w-full h-full" />
