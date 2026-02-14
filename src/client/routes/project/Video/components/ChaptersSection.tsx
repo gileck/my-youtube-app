@@ -54,7 +54,7 @@ export const ChaptersSection = ({ chapters, videoId }: ChaptersSectionProps) => 
     const handleCopy = async () => {
         try {
             const text = chapters
-                .map((ch) => `[${formatTime(ch.startTime)}] ${ch.title}\n${ch.content}`)
+                .map((ch) => `[${formatTime(ch.originalStartTime ?? ch.startTime)}] ${ch.title}\n${ch.content}`)
                 .join('\n\n');
             await navigator.clipboard.writeText(text);
             setCopied(true);
@@ -84,10 +84,10 @@ export const ChaptersSection = ({ chapters, videoId }: ChaptersSectionProps) => 
                         <div key={i} className={`px-2 py-1 -mx-2 transition-colors ${activeChapter === chapter ? 'border-l-2 border-primary' : ''}`}>
                             <div className="flex items-baseline gap-2">
                                 <button
-                                    onClick={() => seekTo(chapter.startTime)}
+                                    onClick={() => seekTo(chapter.originalStartTime ?? chapter.startTime)}
                                     className="text-xs font-mono flex-shrink-0 text-muted-foreground hover:text-foreground"
                                 >
-                                    {formatTime(chapter.startTime)}
+                                    {formatTime(chapter.originalStartTime ?? chapter.startTime)}
                                 </button>
                                 <span className="text-sm font-medium text-foreground flex-1">
                                     {chapter.title}
