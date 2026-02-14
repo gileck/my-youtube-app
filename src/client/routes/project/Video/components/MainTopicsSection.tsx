@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/client/components/template/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/client/components/template/ui/collapsible';
-import { ChevronDown, ChevronRight, RefreshCw, LayoutList, Clock, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, RefreshCw, LayoutList, Clock, Loader2, Copy, Check } from 'lucide-react';
 import { getModelById } from '@/common/ai/models';
 import { useTopicExpansion, useSubtopicExpansion } from '../hooks';
 import { useActiveTopic, useActiveKeyPoint, useSeekTo, useVideoPlayerStore } from '@/client/features/project/video-player';
@@ -11,8 +11,12 @@ import { useVideoUIToggle } from '@/client/features/project/video-ui-state';
 import type { VideoTopic, TopicKeyPoint, TranscriptSegment, ChapterWithContent } from '@/apis/project/youtube/types';
 
 function formatTimestamp(seconds: number): string {
-    const mins = Math.floor(seconds / 60);
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
+    if (hrs > 0) {
+        return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
     return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
@@ -53,27 +57,29 @@ const SubtopicItem = ({ kp, nextTimestamp, videoId, videoTitle, chapterSegments,
     };
 
     return (
-        <div className={`rounded-md px-1.5 py-0.5 transition-colors ${isActive ? 'bg-primary/10' : ''}`}>
-            <div className="flex items-start gap-2 text-sm">
-                <button
-                    onClick={() => onSeek(kp.timestamp)}
-                    className="flex shrink-0 items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground mt-0.5"
-                >
-                    <Clock size={10} />
-                    {formatTimestamp(kp.timestamp)}
+        <div className={`rounded-md py-0.5 pl-2 border-l-2 transition-colors ${isActive ? 'border-primary bg-primary/10' : 'border-border'}`}>
+            <div className="flex items-start gap-1 text-sm">
+                <button onClick={handleToggle} className="mt-0.5 shrink-0 text-muted-foreground">
+                    {showTakeaways && isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                 </button>
-                <button onClick={handleToggle} className="min-w-0 text-left flex items-start gap-1">
-                    <span className="mt-0.5 shrink-0 text-muted-foreground">
-                        {showTakeaways && isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                    </span>
-                    <div className="min-w-0">
-                        {kp.title && <span className="font-medium text-foreground">{kp.title}: </span>}
-                        <span className="text-muted-foreground">{kp.text}</span>
-                    </div>
-                </button>
+                <div className="min-w-0 flex-1">
+                    <button
+                        onClick={() => onSeek(kp.timestamp)}
+                        className="inline-flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground mb-0.5"
+                    >
+                        <Clock size={10} />
+                        {formatTimestamp(kp.timestamp)}
+                    </button>
+                    <button onClick={handleToggle} className="text-left">
+                        <span className={`${!(showTakeaways && isExpanded) ? 'line-clamp-2' : ''}`}>
+                            {kp.title && <span className="font-medium text-foreground">{kp.title}: </span>}
+                            <span className="text-muted-foreground">{kp.text}</span>
+                        </span>
+                    </button>
+                </div>
             </div>
             {isExpanded && showTakeaways && (
-                <div className="ml-16 mt-1 mb-2">
+                <div className="ml-4 mt-1 mb-2">
                     {isLoading && (
                         <div className="flex items-center gap-1.5 text-sm text-muted-foreground animate-pulse">
                             <Loader2 size={12} className="animate-spin" />
@@ -102,9 +108,10 @@ interface TopicItemProps {
     isActive: boolean;
     topicIndex: number;
     preloadFirstSubtopic?: boolean;
+    nextTopicTimestamp?: number;
 }
 
-const TopicItem = ({ topic, videoId, segments, videoTitle, chapters, isActive, topicIndex, preloadFirstSubtopic }: TopicItemProps) => {
+const TopicItem = ({ topic, videoId, segments, videoTitle, chapters, isActive, topicIndex, preloadFirstSubtopic, nextTopicTimestamp }: TopicItemProps) => {
     const [isOpen, setIsOpen] = useVideoUIToggle(videoId, `topic:${topicIndex}`, false);
     const [showExpansion, setShowExpansion] = useVideoUIToggle(videoId, `topicDetail:${topicIndex}`, true);
     const matchingChapter = chapters?.find(c => c.title === topic.title);
@@ -113,9 +120,22 @@ const TopicItem = ({ topic, videoId, segments, videoTitle, chapters, isActive, t
     const rawActiveKeyPoint = useActiveKeyPoint(topic.keyPoints);
     const activeKeyPoint = isActive ? rawActiveKeyPoint : null;
     const seekTo = useSeekTo();
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle for copy confirmation
+    const [copied, setCopied] = useState(false);
+
+    const copyTranscript = useCallback(() => {
+        const chapterSegments = matchingChapter?.segments;
+        const relevantSegments = chapterSegments
+            ?? segments?.filter(s => s.start_seconds >= topic.timestamp && (nextTopicTimestamp === undefined || s.start_seconds < nextTopicTimestamp));
+        if (!relevantSegments?.length) return;
+        const text = relevantSegments.map(s => s.text).join(' ');
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    }, [matchingChapter?.segments, segments, topic.timestamp, nextTopicTimestamp]);
 
     return (
-        <div className={`rounded-lg p-3 transition-colors bg-muted/30 ${isActive ? 'border-l-2 border-primary' : ''}`}>
+        <div className={`rounded-lg px-2 py-2 sm:p-3 transition-colors bg-muted/30 ${isActive ? 'border-l-2 border-primary' : ''}`}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex w-full items-start gap-2 text-left"
@@ -124,22 +144,29 @@ const TopicItem = ({ topic, videoId, segments, videoTitle, chapters, isActive, t
                     {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </span>
                 <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{topic.title}</span>
+                    <div className="flex items-center gap-1.5 mb-0.5">
                         <span
                             onClick={(e) => { e.stopPropagation(); seekTo(topic.timestamp); }}
-                            className="flex shrink-0 items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+                            className="inline-flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
                         >
                             <Clock size={10} />
                             {formatTimestamp(topic.timestamp)}
                         </span>
+                        <span
+                            onClick={(e) => { e.stopPropagation(); copyTranscript(); }}
+                            className="inline-flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+                        >
+                            {copied ? <Check size={10} /> : <Copy size={10} />}
+                            {copied ? 'Copied' : 'Transcript'}
+                        </span>
                     </div>
-                    <p className="mt-0.5 text-sm text-muted-foreground">{topic.description}</p>
+                    <span className="block text-sm font-medium">{topic.title}</span>
+                    <p className={`mt-0.5 text-sm text-muted-foreground ${!isOpen ? 'line-clamp-2' : ''}`}>{topic.description}</p>
                 </div>
             </button>
 
             {isOpen && (
-                <div className="mt-2 ml-5 space-y-1">
+                <div className="mt-2 sm:ml-5 space-y-1">
                     {hasKeyPoints && (() => {
                         const activeIdx = topic.keyPoints.findIndex(kp => kp === activeKeyPoint);
                         return topic.keyPoints.map((kp, i) => (
@@ -308,6 +335,7 @@ export const MainTopicsSection = ({
                                         chapters={chapters}
                                         isActive={activeTopic === topic}
                                         topicIndex={i}
+                                        nextTopicTimestamp={topics[i + 1]?.timestamp}
                                         preloadFirstSubtopic={shouldPreloadFirst}
                                     />
                                 );

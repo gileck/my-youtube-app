@@ -114,7 +114,7 @@ export interface GetVideoSummaryRequest {
     videoId: string;
     transcript: string;
     title: string;
-    chapters?: Array<{ title: string; content: string; startTime: number }>;
+    chapters?: Array<{ title: string; content: string; startTime: number; originalStartTime?: number }>;
     bypassCache?: boolean;
     actionType?: AIActionType;
     topicTitle?: string;

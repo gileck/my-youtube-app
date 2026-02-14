@@ -98,7 +98,11 @@ export function splitTranscriptToChapters(
   });
 }
 
-function applyChapterOverlap(chapters: Chapter[], overlapOffsetSeconds: number): Chapter[] {
+interface ChapterWithOriginal extends Chapter {
+  originalStartTime: number;
+}
+
+function applyChapterOverlap(chapters: Chapter[], overlapOffsetSeconds: number): ChapterWithOriginal[] {
   return chapters.map((chapter, index) => {
     const adjustedStartTime =
       index === 0 ? chapter.startTime : Math.max(0, chapter.startTime - overlapOffsetSeconds);
@@ -106,17 +110,19 @@ function applyChapterOverlap(chapters: Chapter[], overlapOffsetSeconds: number):
 
     return {
       ...chapter,
+      originalStartTime: chapter.startTime,
       startTime: adjustedStartTime,
       endTime: adjustedEndTime,
     };
   });
 }
 
-function initializeChaptersWithContent(chapters: Chapter[]): ChapterWithContent[] {
+function initializeChaptersWithContent(chapters: ChapterWithOriginal[]): ChapterWithContent[] {
   return chapters.map((chapter) => ({
     title: chapter.title,
     startTime: chapter.startTime,
     endTime: chapter.endTime,
+    originalStartTime: chapter.originalStartTime,
     content: '',
     segments: [],
   }));
@@ -158,6 +164,7 @@ function finalizeOutput(
       title: chapter.title,
       startTime: chapter.startTime,
       endTime: chapter.endTime,
+      originalStartTime: chapter.originalStartTime,
       content: content.trim(),
       segments: sortedSegments,
     };

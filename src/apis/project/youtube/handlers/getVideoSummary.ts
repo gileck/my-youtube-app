@@ -315,18 +315,18 @@ Return ONLY a JSON object (not array): {"description": "...", "keyPoints": [{"ti
                     const totalCost = chapterResponses.reduce((sum, r) => sum + (r.cost?.totalCost ?? 0), 0);
 
                     const topics: VideoTopic[] = chapterResponses.map((r, i) => {
-                        const startSec = Number(chapters[i].startTime) || 0;
-                        const endSec = i + 1 < chapters.length
-                            ? Number(chapters[i + 1].startTime) || 0
-                            : startSec + 3600;
+                        const originalStart = Number(chapters[i].originalStartTime ?? chapters[i].startTime) || 0;
+                        const originalEnd = i + 1 < chapters.length
+                            ? Number(chapters[i + 1].originalStartTime ?? chapters[i + 1].startTime) || 0
+                            : originalStart + 3600;
                         const parsed = parseChapterTopicJson(r.result);
                         return {
                             title: chapters[i].title,
-                            timestamp: startSec,
+                            timestamp: originalStart,
                             description: parsed.description,
                             keyPoints: parsed.keyPoints.map(kp => ({
                                 ...kp,
-                                timestamp: Math.min(Math.max(kp.timestamp, startSec), endSec),
+                                timestamp: Math.min(Math.max(kp.timestamp, originalStart), originalEnd),
                             })),
                         };
                     });

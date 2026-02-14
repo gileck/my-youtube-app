@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/client/components/template/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/client/components/template/ui/collapsible';
 import { errorToastAuto } from '@/client/features/template/error-tracking';
@@ -6,6 +6,32 @@ import { ChevronDown, ChevronRight, Copy, Check } from 'lucide-react';
 import { useActiveChapter, useSeekTo } from '@/client/features/project/video-player';
 import { useVideoUIToggle } from '@/client/features/project/video-ui-state';
 import type { ChapterWithContent } from '@/apis/project/youtube/types';
+
+function CopyChapterButton({ chapter }: { chapter: ChapterWithContent }) {
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral clipboard feedback
+    const [copiedChapter, setCopiedChapter] = useState(false);
+
+    const handleCopyChapter = useCallback(async () => {
+        try {
+            const text = chapter.segments.map(s => s.text).join(' ');
+            await navigator.clipboard.writeText(text);
+            setCopiedChapter(true);
+            setTimeout(() => setCopiedChapter(false), 2000);
+        } catch (err) {
+            errorToastAuto(err, 'Failed to copy to clipboard');
+        }
+    }, [chapter.segments]);
+
+    return (
+        <button
+            onClick={handleCopyChapter}
+            className="flex shrink-0 items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+        >
+            {copiedChapter ? <Check size={10} /> : <Copy size={10} />}
+            {copiedChapter ? 'Copied' : 'Copy'}
+        </button>
+    );
+}
 
 function formatTime(seconds: number): string {
     const m = Math.floor(seconds / 60);
@@ -63,9 +89,10 @@ export const ChaptersSection = ({ chapters, videoId }: ChaptersSectionProps) => 
                                 >
                                     {formatTime(chapter.startTime)}
                                 </button>
-                                <span className="text-sm font-medium text-foreground">
+                                <span className="text-sm font-medium text-foreground flex-1">
                                     {chapter.title}
                                 </span>
+                                <CopyChapterButton chapter={chapter} />
                             </div>
                             {chapter.content && (
                                 <p className="mt-1 ml-14 text-xs text-muted-foreground line-clamp-2">

@@ -89,6 +89,7 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
         () => chapters?.map(c => ({
             title: c.title,
             startTime: c.startTime,
+            originalStartTime: c.originalStartTime,
             content: actionType === 'topics'
                 ? buildTimestampedTranscript(c.segments)
                 : c.content,

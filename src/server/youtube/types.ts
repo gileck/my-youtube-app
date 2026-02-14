@@ -142,6 +142,7 @@ export interface ChapterWithContent {
   title: string;
   startTime: number;
   endTime: number;
+  originalStartTime: number;
   content: string;
   segments: TranscriptSegment[];
 }
