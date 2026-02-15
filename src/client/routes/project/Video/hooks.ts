@@ -51,9 +51,11 @@ export function useVideoDetails(videoId: string) {
 
 export function useTranscript(videoId: string) {
     const queryDefaults = useQueryDefaults();
+    const queryClient = useQueryClient();
+    const queryKey = useMemo(() => ['youtube', 'transcript', videoId], [videoId]);
 
-    return useQuery({
-        queryKey: ['youtube', 'transcript', videoId],
+    const query = useQuery({
+        queryKey,
         queryFn: async (): Promise<GetTranscriptResponse> => {
             try {
                 const response = await getTranscript({ videoId });
@@ -70,9 +72,16 @@ export function useTranscript(videoId: string) {
         enabled: !!videoId,
         ...queryDefaults,
     });
+
+    const hardRefresh = useCallback(async () => {
+        queryClient.removeQueries({ queryKey });
+        await queryClient.refetchQueries({ queryKey });
+    }, [queryClient, queryKey]);
+
+    return { ...query, hardRefresh };
 }
 
-function useVideoAIAction(actionType: AIActionType, videoId: string, segments: TranscriptSegment[] | undefined, title: string | undefined, chapters: ChapterWithContent[] | undefined) {
+function useVideoAIAction(actionType: AIActionType, videoId: string, segments: TranscriptSegment[] | undefined, title: string | undefined, chapters: ChapterWithContent[] | undefined, description?: string) {
     const queryDefaults = useQueryDefaults();
     const queryClient = useQueryClient();
     const aiModel = useSettingsStore((s) => s.settings.aiModel);
@@ -85,16 +94,23 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
             ? buildTimestampedTranscript(segments)
             : segments.map(s => s.text).join(' '))
         : '';
+    const AI_OVERLAP_SECONDS = 5;
     const chapterData = useMemo(
-        () => chapters?.map(c => ({
-            title: c.title,
-            startTime: c.startTime,
-            originalStartTime: c.originalStartTime,
-            content: actionType === 'topics'
-                ? buildTimestampedTranscript(c.segments)
-                : c.content,
-        })),
-        [chapters, actionType]
+        () => chapters?.map((c, i) => {
+            const overlapStart = Math.max(0, c.startTime - AI_OVERLAP_SECONDS);
+            const overlapEnd = (chapters[i + 1]?.startTime ?? c.endTime) + AI_OVERLAP_SECONDS;
+            const aiSegments = segments?.filter(s =>
+                s.start_seconds >= overlapStart && s.start_seconds < overlapEnd
+            ) ?? c.segments;
+            return {
+                title: c.title,
+                startTime: c.startTime,
+                content: actionType === 'topics'
+                    ? buildTimestampedTranscript(aiSegments)
+                    : aiSegments.map(s => s.text).join(' '),
+            };
+        }),
+        [chapters, segments, actionType]
     );
     const queryKey = ['youtube', actionType, videoId];
 
@@ -102,7 +118,7 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
         queryKey,
         queryFn: async (): Promise<GetVideoSummaryResponse> => {
             try {
-                const response = await getVideoSummary({ videoId, transcript, title: title ?? '', chapters: chapterData, actionType, modelId: aiModel });
+                const response = await getVideoSummary({ videoId, transcript, title: title ?? '', chapters: chapterData, actionType, modelId: aiModel, description });
                 if (response.data?.error) {
                     throw new Error(response.data.error);
                 }
@@ -125,7 +141,7 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
         setIsRegenerating(true);
         queryClient.setQueryData(queryKey, undefined);
         try {
-            const response = await getVideoSummary({ videoId, transcript, title: title ?? '', chapters: chapterData, bypassCache: true, actionType, modelId: aiModel });
+            const response = await getVideoSummary({ videoId, transcript, title: title ?? '', chapters: chapterData, bypassCache: true, actionType, modelId: aiModel, description });
             if (response.data?.error) {
                 throw new Error(response.data.error);
             }
@@ -136,7 +152,7 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
         } finally {
             setIsRegenerating(false);
         }
-    }, [videoId, transcript, title, queryClient, chapterData, actionType]);
+    }, [videoId, transcript, title, queryClient, chapterData, actionType, aiModel, description]);
 
     return { ...query, isEnabled, generate, isRegenerating, regenerate };
 }
@@ -151,6 +167,10 @@ export function useVideoKeyPoints(videoId: string, segments: TranscriptSegment[]
 
 export function useVideoTopics(videoId: string, segments: TranscriptSegment[] | undefined, title: string | undefined, chapters: ChapterWithContent[] | undefined) {
     return useVideoAIAction('topics', videoId, segments, title, chapters);
+}
+
+export function useVideoExplain(videoId: string, segments: TranscriptSegment[] | undefined, title: string | undefined, description: string | undefined, chapters: ChapterWithContent[] | undefined) {
+    return useVideoAIAction('explain', videoId, segments, title, chapters, description);
 }
 
 export function useTopicExpansion(videoId: string, topicTitle: string, segments: TranscriptSegment[] | undefined, videoTitle: string | undefined, chapterSegments?: TranscriptSegment[], storeKey?: string) {

@@ -69,14 +69,13 @@ export function splitTranscriptToChapters(
     });
   }
 
-  const chaptersWithOverlap = applyChapterOverlap(artificialChapters, options.overlapOffsetSeconds);
-  const chaptersWithContent = initializeChaptersWithContent(chaptersWithOverlap);
+  const chaptersWithContent = initializeChaptersWithContent(artificialChapters);
 
   for (const segment of sortedTranscript) {
     if (shouldFilterTranscriptItem(segment.text)) continue;
 
     for (const chapter of chaptersWithContent) {
-      if (segment.start_seconds >= chapter.startTime && segment.start_seconds <= chapter.endTime) {
+      if (segment.start_seconds >= chapter.startTime - 1 && segment.start_seconds <= chapter.endTime + 1) {
         chapter.segments.push({
           text: segment.text,
           start_seconds: segment.start_seconds,
@@ -98,31 +97,11 @@ export function splitTranscriptToChapters(
   });
 }
 
-interface ChapterWithOriginal extends Chapter {
-  originalStartTime: number;
-}
-
-function applyChapterOverlap(chapters: Chapter[], overlapOffsetSeconds: number): ChapterWithOriginal[] {
-  return chapters.map((chapter, index) => {
-    const adjustedStartTime =
-      index === 0 ? chapter.startTime : Math.max(0, chapter.startTime - overlapOffsetSeconds);
-    const adjustedEndTime = chapter.endTime + overlapOffsetSeconds;
-
-    return {
-      ...chapter,
-      originalStartTime: chapter.startTime,
-      startTime: adjustedStartTime,
-      endTime: adjustedEndTime,
-    };
-  });
-}
-
-function initializeChaptersWithContent(chapters: ChapterWithOriginal[]): ChapterWithContent[] {
+function initializeChaptersWithContent(chapters: Chapter[]): ChapterWithContent[] {
   return chapters.map((chapter) => ({
     title: chapter.title,
     startTime: chapter.startTime,
     endTime: chapter.endTime,
-    originalStartTime: chapter.originalStartTime,
     content: '',
     segments: [],
   }));
@@ -164,7 +143,6 @@ function finalizeOutput(
       title: chapter.title,
       startTime: chapter.startTime,
       endTime: chapter.endTime,
-      originalStartTime: chapter.originalStartTime,
       content: content.trim(),
       segments: sortedSegments,
     };
@@ -203,15 +181,14 @@ function combineTranscriptAndChapters(
     };
   }
 
-  const overlappedChapters = applyChapterOverlap(chapters, options.overlapOffsetSeconds);
-  const chaptersWithContent = initializeChaptersWithContent(overlappedChapters);
+  const chaptersWithContent = initializeChaptersWithContent(chapters);
 
   transcript.forEach((item) => {
     const segmentTimeSeconds = item.start_seconds;
 
-    for (let i = 0; i < overlappedChapters.length; i++) {
-      const chapter = overlappedChapters[i];
-      if (segmentTimeSeconds >= chapter.startTime && segmentTimeSeconds < chapter.endTime) {
+    for (let i = 0; i < chapters.length; i++) {
+      const chapter = chapters[i];
+      if (segmentTimeSeconds >= chapter.startTime - 1 && segmentTimeSeconds < chapter.endTime + 1) {
         const chapterContent = chaptersWithContent[i];
         chapterContent.content += ' ' + item.text;
         chapterContent.segments.push({

@@ -1,17 +1,17 @@
-import { Sparkles, ListChecks, FileText, LayoutList } from 'lucide-react';
+import { Sparkles, ListChecks, FileText, LayoutList, MessageCircleQuestion } from 'lucide-react';
 import { useRouter } from '@/client/features';
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { Button } from '@/client/components/template/ui/button';
 import { useAddToHistory } from '@/client/features/project/history';
-import { useVideoDetails, useTranscript, useVideoSummary, useVideoKeyPoints, useVideoTopics } from './hooks';
-import { VideoPlayer, VideoInfo, VideoDetailSkeleton, TranscriptSection, ChaptersSection, AIActionSection, MainTopicsSection } from './components';
+import { useVideoDetails, useTranscript, useVideoSummary, useVideoKeyPoints, useVideoTopics, useVideoExplain } from './hooks';
+import { VideoPlayer, VideoInfo, VideoDetailSkeleton, TranscriptSection, ChaptersSection, AIActionSection, MainTopicsSection, ExplainSection } from './components';
 
 export const Video = () => {
     const { routeParams } = useRouter();
     const videoId = routeParams.videoId ?? '';
 
     const { data: detailsData, isLoading: detailsLoading, error: detailsError } = useVideoDetails(videoId);
-    const { data: transcriptData, isLoading: transcriptLoading, error: transcriptError } = useTranscript(videoId);
+    const { data: transcriptData, isLoading: transcriptLoading, error: transcriptError, hardRefresh: refreshTranscript } = useTranscript(videoId);
 
     const video = detailsData?.video;
     useAddToHistory(video);
@@ -47,9 +47,19 @@ export const Video = () => {
         regenerate: topicsRegenerate,
     } = useVideoTopics(videoId, transcript?.transcript, video?.title, transcript?.chapters);
 
+    const {
+        data: explainData,
+        isEnabled: explainEnabled,
+        isLoading: explainLoading,
+        isRegenerating: explainRegenerating,
+        error: explainError,
+        generate: explainGenerate,
+        regenerate: explainRegenerate,
+    } = useVideoExplain(videoId, transcript?.transcript, video?.title, video?.description, transcript?.chapters);
+
     const hasTranscript = transcript?.transcript && transcript.transcript.length > 0;
     const hasChapters = transcript?.chapters && transcript.chapters.length > 0;
-    const anyAIEnabled = summaryEnabled || keyPointsEnabled || topicsEnabled;
+    const anyAIEnabled = summaryEnabled || keyPointsEnabled || topicsEnabled || explainEnabled;
 
     return (
         <div className="mx-auto max-w-3xl px-4 py-4">
@@ -74,7 +84,7 @@ export const Video = () => {
                                     AI Analysis
                                 </div>
 
-                                {(!summaryEnabled || !keyPointsEnabled || !topicsEnabled) && (
+                                {(!summaryEnabled || !keyPointsEnabled || !topicsEnabled || !explainEnabled) && (
                                     <div className="flex flex-wrap gap-2">
                                         {!summaryEnabled && (
                                             <Button variant="outline" size="sm" className="gap-1.5 rounded-full" onClick={summaryGenerate}>
@@ -92,6 +102,12 @@ export const Video = () => {
                                             <Button variant="outline" size="sm" className="gap-1.5 rounded-full" onClick={topicsGenerate}>
                                                 <LayoutList size={14} />
                                                 Main Topics
+                                            </Button>
+                                        )}
+                                        {!explainEnabled && (
+                                            <Button variant="outline" size="sm" className="gap-1.5 rounded-full" onClick={explainGenerate}>
+                                                <MessageCircleQuestion size={14} />
+                                                Explain
                                             </Button>
                                         )}
                                     </div>
@@ -155,6 +171,22 @@ export const Video = () => {
                                                 chapters={transcript?.chapters}
                                             />
                                         )}
+                                        {explainEnabled && (
+                                            <ExplainSection
+                                                summary={explainData?.summary}
+                                                chapterSummaries={explainData?.chapterSummaries}
+                                                modelId={explainData?.modelId}
+                                                cost={explainData?.cost}
+                                                isFromCache={explainData?._isFromCache}
+                                                isEnabled={explainEnabled}
+                                                isLoading={explainLoading}
+                                                isRegenerating={explainRegenerating}
+                                                error={explainError}
+                                                onGenerate={explainGenerate}
+                                                onRegenerate={explainRegenerate}
+                                                videoId={videoId}
+                                            />
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -172,10 +204,10 @@ export const Video = () => {
                                 </div>
                                 <div className="space-y-2">
                                     {hasTranscript && (
-                                        <TranscriptSection segments={transcript.transcript} />
+                                        <TranscriptSection segments={transcript.transcript} onRefresh={refreshTranscript} />
                                     )}
                                     {hasChapters && (
-                                        <ChaptersSection chapters={transcript.chapters} videoId={videoId} />
+                                        <ChaptersSection chapters={transcript.chapters} videoId={videoId} onRefresh={refreshTranscript} />
                                     )}
                                 </div>
                             </div>

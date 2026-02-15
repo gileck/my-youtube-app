@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Button } from '@/client/components/template/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/client/components/template/ui/collapsible';
 import { errorToastAuto } from '@/client/features/template/error-tracking';
-import { ChevronDown, ChevronRight, Copy, Check } from 'lucide-react';
+import { ChevronDown, ChevronRight, Copy, Check, RefreshCw } from 'lucide-react';
 import { useActiveChapter, useSeekTo } from '@/client/features/project/video-player';
 import { useVideoUIToggle } from '@/client/features/project/video-ui-state';
 import type { ChapterWithContent } from '@/apis/project/youtube/types';
@@ -42,9 +42,10 @@ function formatTime(seconds: number): string {
 interface ChaptersSectionProps {
     chapters: ChapterWithContent[];
     videoId: string;
+    onRefresh?: () => void;
 }
 
-export const ChaptersSection = ({ chapters, videoId }: ChaptersSectionProps) => {
+export const ChaptersSection = ({ chapters, videoId, onRefresh }: ChaptersSectionProps) => {
     const [open, setOpen] = useVideoUIToggle(videoId, 'chapters', false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral clipboard feedback
     const [copied, setCopied] = useState(false);
@@ -54,7 +55,7 @@ export const ChaptersSection = ({ chapters, videoId }: ChaptersSectionProps) => 
     const handleCopy = async () => {
         try {
             const text = chapters
-                .map((ch) => `[${formatTime(ch.originalStartTime ?? ch.startTime)}] ${ch.title}\n${ch.content}`)
+                .map((ch) => `[${formatTime(ch.startTime)}] ${ch.title}\n${ch.content}`)
                 .join('\n\n');
             await navigator.clipboard.writeText(text);
             setCopied(true);
@@ -73,10 +74,17 @@ export const ChaptersSection = ({ chapters, videoId }: ChaptersSectionProps) => 
                         Chapters ({chapters.length})
                     </Button>
                 </CollapsibleTrigger>
-                <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-1.5 text-xs">
-                    {copied ? <Check size={14} /> : <Copy size={14} />}
-                    {copied ? 'Copied' : 'Copy all'}
-                </Button>
+                <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-1.5 text-xs">
+                        {copied ? <Check size={14} /> : <Copy size={14} />}
+                        {copied ? 'Copied' : 'Copy all'}
+                    </Button>
+                    {onRefresh && (
+                        <Button variant="ghost" size="sm" onClick={onRefresh} className="h-7 w-7 p-0">
+                            <RefreshCw size={14} />
+                        </Button>
+                    )}
+                </div>
             </div>
             <CollapsibleContent>
                 <div className="mt-2 max-h-96 overflow-y-auto rounded-lg bg-muted/50 p-3 space-y-3">
@@ -84,10 +92,10 @@ export const ChaptersSection = ({ chapters, videoId }: ChaptersSectionProps) => 
                         <div key={i} className={`px-2 py-1 -mx-2 transition-colors ${activeChapter === chapter ? 'border-l-2 border-primary' : ''}`}>
                             <div className="flex items-baseline gap-2">
                                 <button
-                                    onClick={() => seekTo(chapter.originalStartTime ?? chapter.startTime)}
+                                    onClick={() => seekTo(chapter.startTime)}
                                     className="text-xs font-mono flex-shrink-0 text-muted-foreground hover:text-foreground"
                                 >
-                                    {formatTime(chapter.originalStartTime ?? chapter.startTime)}
+                                    {formatTime(chapter.startTime)}
                                 </button>
                                 <span className="text-sm font-medium text-foreground flex-1">
                                     {chapter.title}
