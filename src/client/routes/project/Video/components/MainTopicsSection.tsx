@@ -227,11 +227,9 @@ interface MainTopicsSectionProps {
     modelId?: string;
     cost?: { totalCost: number };
     isFromCache?: boolean;
-    isEnabled: boolean;
     isLoading: boolean;
     isRegenerating: boolean;
     error?: Error | null;
-    onGenerate: () => void;
     onRegenerate: () => void;
     videoId: string;
     segments: TranscriptSegment[] | undefined;
@@ -244,11 +242,9 @@ export const MainTopicsSection = ({
     modelId,
     cost,
     isFromCache,
-    isEnabled,
     isLoading,
     isRegenerating,
     error,
-    onGenerate,
     onRegenerate,
     videoId,
     segments,
@@ -263,15 +259,6 @@ export const MainTopicsSection = ({
 
     const modelName = modelId ? getModelById(modelId).name : undefined;
     const loading = isLoading || isRegenerating;
-
-    if (!isEnabled) {
-        return (
-            <Button variant="ghost" size="sm" className="gap-1.5 px-2" onClick={onGenerate}>
-                <LayoutList size={14} />
-                Main Topics
-            </Button>
-        );
-    }
 
     return (
         <Collapsible open={open} onOpenChange={setOpen}>

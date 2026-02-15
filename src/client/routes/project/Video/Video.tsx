@@ -24,6 +24,7 @@ export const Video = () => {
         isRegenerating: summaryRegenerating,
         error: summaryError,
         generate: summaryGenerate,
+        disable: summaryDisable,
         regenerate: summaryRegenerate,
     } = useVideoSummary(videoId, transcript?.transcript, video?.title, transcript?.chapters);
 
@@ -34,6 +35,7 @@ export const Video = () => {
         isRegenerating: keyPointsRegenerating,
         error: keyPointsError,
         generate: keyPointsGenerate,
+        disable: keyPointsDisable,
         regenerate: keyPointsRegenerate,
     } = useVideoKeyPoints(videoId, transcript?.transcript, video?.title, transcript?.chapters);
 
@@ -44,6 +46,7 @@ export const Video = () => {
         isRegenerating: topicsRegenerating,
         error: topicsError,
         generate: topicsGenerate,
+        disable: topicsDisable,
         regenerate: topicsRegenerate,
     } = useVideoTopics(videoId, transcript?.transcript, video?.title, transcript?.chapters);
 
@@ -54,6 +57,7 @@ export const Video = () => {
         isRegenerating: explainRegenerating,
         error: explainError,
         generate: explainGenerate,
+        disable: explainDisable,
         regenerate: explainRegenerate,
     } = useVideoExplain(videoId, transcript?.transcript, video?.title, video?.description, transcript?.chapters);
 
@@ -84,37 +88,27 @@ export const Video = () => {
                                     AI Analysis
                                 </div>
 
-                                {(!summaryEnabled || !keyPointsEnabled || !topicsEnabled || !explainEnabled) && (
-                                    <div className="flex flex-wrap gap-2">
-                                        {!summaryEnabled && (
-                                            <Button variant="outline" size="sm" className="gap-1.5 rounded-full" onClick={summaryGenerate}>
-                                                <Sparkles size={14} />
-                                                Summary
-                                            </Button>
-                                        )}
-                                        {!keyPointsEnabled && (
-                                            <Button variant="outline" size="sm" className="gap-1.5 rounded-full" onClick={keyPointsGenerate}>
-                                                <ListChecks size={14} />
-                                                Key Points
-                                            </Button>
-                                        )}
-                                        {!topicsEnabled && (
-                                            <Button variant="outline" size="sm" className="gap-1.5 rounded-full" onClick={topicsGenerate}>
-                                                <LayoutList size={14} />
-                                                Main Topics
-                                            </Button>
-                                        )}
-                                        {!explainEnabled && (
-                                            <Button variant="outline" size="sm" className="gap-1.5 rounded-full" onClick={explainGenerate}>
-                                                <MessageCircleQuestion size={14} />
-                                                Explain
-                                            </Button>
-                                        )}
-                                    </div>
-                                )}
+                                <div className="flex flex-wrap gap-2">
+                                    <Button variant={summaryEnabled ? "default" : "outline"} size="sm" className="gap-1.5 rounded-full" onClick={summaryEnabled ? summaryDisable : summaryGenerate}>
+                                        <Sparkles size={14} />
+                                        Summary
+                                    </Button>
+                                    <Button variant={keyPointsEnabled ? "default" : "outline"} size="sm" className="gap-1.5 rounded-full" onClick={keyPointsEnabled ? keyPointsDisable : keyPointsGenerate}>
+                                        <ListChecks size={14} />
+                                        Key Points
+                                    </Button>
+                                    <Button variant={topicsEnabled ? "default" : "outline"} size="sm" className="gap-1.5 rounded-full" onClick={topicsEnabled ? topicsDisable : topicsGenerate}>
+                                        <LayoutList size={14} />
+                                        Main Topics
+                                    </Button>
+                                    <Button variant={explainEnabled ? "default" : "outline"} size="sm" className="gap-1.5 rounded-full" onClick={explainEnabled ? explainDisable : explainGenerate}>
+                                        <MessageCircleQuestion size={14} />
+                                        Explain
+                                    </Button>
+                                </div>
 
                                 {anyAIEnabled && (
-                                    <div className={`space-y-2 ${(!summaryEnabled || !keyPointsEnabled || !topicsEnabled) ? 'mt-3' : ''}`}>
+                                    <div className="mt-3 space-y-2">
                                         {summaryEnabled && (
                                             <AIActionSection
                                                 title="AI Summary"
@@ -124,11 +118,9 @@ export const Video = () => {
                                                 modelId={summaryData?.modelId}
                                                 cost={summaryData?.cost}
                                                 isFromCache={summaryData?._isFromCache}
-                                                isEnabled={summaryEnabled}
                                                 isLoading={summaryLoading}
                                                 isRegenerating={summaryRegenerating}
                                                 error={summaryError}
-                                                onGenerate={summaryGenerate}
                                                 onRegenerate={summaryRegenerate}
                                                 videoId={videoId}
                                                 sectionKey="aiSummary"
@@ -143,11 +135,9 @@ export const Video = () => {
                                                 modelId={keyPointsData?.modelId}
                                                 cost={keyPointsData?.cost}
                                                 isFromCache={keyPointsData?._isFromCache}
-                                                isEnabled={keyPointsEnabled}
                                                 isLoading={keyPointsLoading}
                                                 isRegenerating={keyPointsRegenerating}
                                                 error={keyPointsError}
-                                                onGenerate={keyPointsGenerate}
                                                 onRegenerate={keyPointsRegenerate}
                                                 videoId={videoId}
                                                 sectionKey="keyPoints"
@@ -159,11 +149,9 @@ export const Video = () => {
                                                 modelId={topicsData?.modelId}
                                                 cost={topicsData?.cost}
                                                 isFromCache={topicsData?._isFromCache}
-                                                isEnabled={topicsEnabled}
                                                 isLoading={topicsLoading}
                                                 isRegenerating={topicsRegenerating}
                                                 error={topicsError}
-                                                onGenerate={topicsGenerate}
                                                 onRegenerate={topicsRegenerate}
                                                 videoId={videoId}
                                                 segments={transcript?.transcript}
@@ -178,11 +166,9 @@ export const Video = () => {
                                                 modelId={explainData?.modelId}
                                                 cost={explainData?.cost}
                                                 isFromCache={explainData?._isFromCache}
-                                                isEnabled={explainEnabled}
                                                 isLoading={explainLoading}
                                                 isRegenerating={explainRegenerating}
                                                 error={explainError}
-                                                onGenerate={explainGenerate}
                                                 onRegenerate={explainRegenerate}
                                                 videoId={videoId}
                                             />

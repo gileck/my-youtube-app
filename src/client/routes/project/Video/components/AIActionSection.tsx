@@ -16,11 +16,9 @@ interface AIActionSectionProps {
     modelId?: string;
     cost?: { totalCost: number };
     isFromCache?: boolean;
-    isEnabled: boolean;
     isLoading: boolean;
     isRegenerating: boolean;
     error?: Error | null;
-    onGenerate: () => void;
     onRegenerate: () => void;
     videoId: string;
     sectionKey: string;
@@ -58,11 +56,9 @@ export const AIActionSection = ({
     modelId,
     cost,
     isFromCache,
-    isEnabled,
     isLoading,
     isRegenerating,
     error,
-    onGenerate,
     onRegenerate,
     videoId,
     sectionKey,
@@ -72,15 +68,6 @@ export const AIActionSection = ({
 
     const modelName = modelId ? getModelById(modelId).name : undefined;
     const loading = isLoading || isRegenerating;
-
-    if (!isEnabled) {
-        return (
-            <Button variant="ghost" size="sm" className="gap-1.5 px-2" onClick={onGenerate}>
-                {icon}
-                {title}
-            </Button>
-        );
-    }
 
     return (
         <Collapsible open={open} onOpenChange={setOpen}>

@@ -267,6 +267,73 @@ If the content is too brief or lacks enough substance, return just 1-2 takeaways
             return { summary: data.summary, modelId: data.modelId, cost: data.cost, _isFromCache: isFromCache };
         }
 
+        // Chapter-based explain: per-chapter explanation with quotes and emojis
+        const useChapterExplain = actionType === 'explain'
+            && request.chapters
+            && request.chapters.length > 1;
+
+        if (useChapterExplain) {
+            const chapters = request.chapters!;
+            const descriptionLine = request.description ? `\nDescription: "${request.description}"\n` : '';
+            const { data, isFromCache } = await youtubeCache.withCache(
+                async () => {
+                    const chapterResponses = await Promise.all(
+                        chapters.map(ch =>
+                            adapter.processPromptToText(
+                                `Video: "${request.title}"${descriptionLine}
+Chapter: "${ch.title}"
+
+Transcript:
+${ch.content}
+
+Explain this part of the conversation from the chapter transcript step by step simply.
+Quote the part from the text that you are explaining, then explain it simply, with emojis.`,
+                                'getVideoSummary'
+                            )
+                        )
+                    );
+
+                    const totalCost = chapterResponses.reduce((sum, r) => sum + (r.cost?.totalCost ?? 0), 0);
+                    const chapterSummaries = chapterResponses.map((r, i) => ({
+                        title: chapters[i].title,
+                        summary: r.result,
+                    }));
+
+                    return { chapterSummaries, modelId, cost: { totalCost } };
+                },
+                { key: 'video-explain', params: { videoId: request.videoId } },
+                { ttl: YOUTUBE_CACHE_TTL, bypassCache: request.bypassCache }
+            );
+
+            return {
+                chapterSummaries: data.chapterSummaries,
+                modelId: data.modelId,
+                cost: data.cost,
+                _isFromCache: isFromCache,
+            };
+        }
+
+        // Single-pass explain (no chapters or single chapter)
+        if (actionType === 'explain') {
+            const descriptionLine = request.description ? `\nDescription: "${request.description}"\n` : '';
+            const { data, isFromCache } = await youtubeCache.withCache(
+                async () => {
+                    const prompt = `Video: "${request.title}"${descriptionLine}
+Transcript:
+${request.transcript}
+
+Explain this conversation step by step simply.
+Quote the part from the text that you are explaining, then explain it simply, with emojis.`;
+                    const response = await adapter.processPromptToText(prompt, 'getVideoSummary');
+                    return { summary: response.result, modelId, cost: response.cost };
+                },
+                { key: 'video-explain', params: { videoId: request.videoId } },
+                { ttl: YOUTUBE_CACHE_TTL, bypassCache: request.bypassCache }
+            );
+
+            return { summary: data.summary, modelId: data.modelId, cost: data.cost, _isFromCache: isFromCache };
+        }
+
         const prompts = ACTION_PROMPTS[actionType];
         if (!prompts) {
             return { error: `Unknown action type: ${actionType}` };
@@ -343,73 +410,6 @@ Return ONLY a JSON object (not array): {"description": "...", "keyPoints": [{"ti
                 cost: data.cost,
                 _isFromCache: isFromCache,
             };
-        }
-
-        // Chapter-based explain: per-chapter explanation with quotes and emojis
-        const useChapterExplain = actionType === 'explain'
-            && request.chapters
-            && request.chapters.length > 1;
-
-        if (useChapterExplain) {
-            const chapters = request.chapters!;
-            const descriptionLine = request.description ? `\nDescription: "${request.description}"\n` : '';
-            const { data, isFromCache } = await youtubeCache.withCache(
-                async () => {
-                    const chapterResponses = await Promise.all(
-                        chapters.map(ch =>
-                            adapter.processPromptToText(
-                                `Video: "${request.title}"${descriptionLine}
-Chapter: "${ch.title}"
-
-Transcript:
-${ch.content}
-
-Explain this part of the conversation from the chapter transcript step by step simply.
-Quote the part from the text that you are explaining, then explain it simply, with emojis.`,
-                                'getVideoSummary'
-                            )
-                        )
-                    );
-
-                    const totalCost = chapterResponses.reduce((sum, r) => sum + (r.cost?.totalCost ?? 0), 0);
-                    const chapterSummaries = chapterResponses.map((r, i) => ({
-                        title: chapters[i].title,
-                        summary: r.result,
-                    }));
-
-                    return { chapterSummaries, modelId, cost: { totalCost } };
-                },
-                { key: 'video-explain', params: { videoId: request.videoId } },
-                { ttl: YOUTUBE_CACHE_TTL, bypassCache: request.bypassCache }
-            );
-
-            return {
-                chapterSummaries: data.chapterSummaries,
-                modelId: data.modelId,
-                cost: data.cost,
-                _isFromCache: isFromCache,
-            };
-        }
-
-        // Single-pass explain (no chapters or single chapter)
-        if (actionType === 'explain') {
-            const descriptionLine = request.description ? `\nDescription: "${request.description}"\n` : '';
-            const { data, isFromCache } = await youtubeCache.withCache(
-                async () => {
-                    const prompt = `Video: "${request.title}"${descriptionLine}
-Transcript:
-${request.transcript}
-
-Explain this conversation step by step simply.
-Quote the part from the text that you are explaining, then explain it simply, with emojis.`;
-                    const response = await adapter.processPromptToText(prompt, 'getVideoSummary');
-                    return { summary: response.result, modelId, cost: response.cost };
-                },
-                { key: 'video-explain', params: { videoId: request.videoId } },
-                { ttl: YOUTUBE_CACHE_TTL, bypassCache: request.bypassCache }
-            );
-
-            return { summary: data.summary, modelId: data.modelId, cost: data.cost, _isFromCache: isFromCache };
         }
 
         // For summary/keypoints with chapters, use chapter strategy when transcript is large.

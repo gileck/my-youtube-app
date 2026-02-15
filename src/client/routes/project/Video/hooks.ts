@@ -137,6 +137,10 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
         setIsEnabled(true);
     }, [setIsEnabled]);
 
+    const disable = useCallback(() => {
+        setIsEnabled(false);
+    }, [setIsEnabled]);
+
     const regenerate = useCallback(async () => {
         setIsRegenerating(true);
         queryClient.setQueryData(queryKey, undefined);
@@ -154,7 +158,7 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
         }
     }, [videoId, transcript, title, queryClient, chapterData, actionType, aiModel, description]);
 
-    return { ...query, isEnabled, generate, isRegenerating, regenerate };
+    return { ...query, isEnabled, generate, disable, isRegenerating, regenerate };
 }
 
 export function useVideoSummary(videoId: string, segments: TranscriptSegment[] | undefined, title: string | undefined, chapters: ChapterWithContent[] | undefined) {

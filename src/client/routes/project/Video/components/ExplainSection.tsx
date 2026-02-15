@@ -14,26 +14,30 @@ interface ExplainChapterItemProps {
 }
 
 const ExplainChapterItem = ({ chapter, videoId, index }: ExplainChapterItemProps) => {
-    const [open, setOpen] = useVideoUIToggle(videoId, `explain:ch:${index}`, false);
+    const [isOpen, setIsOpen] = useVideoUIToggle(videoId, `explain:${index}`, false);
 
     return (
-        <Collapsible open={open} onOpenChange={setOpen}>
-            <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-1.5 px-2 text-left">
-                    {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    <span className="truncate">{chapter.title}</span>
-                </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-                <div className="ml-6 mr-2 mb-2 rounded-lg bg-muted/30 p-2.5">
+        <div className="rounded-lg px-2 py-2 sm:p-3 bg-muted/30">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex w-full items-start gap-2 text-left"
+            >
+                <span className="mt-0.5 shrink-0 text-muted-foreground">
+                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </span>
+                <span className="text-sm font-medium">{chapter.title}</span>
+            </button>
+
+            {isOpen && (
+                <div className="mt-2 sm:ml-5">
                     <div className="markdown-body text-sm">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                             {chapter.summary}
                         </ReactMarkdown>
                     </div>
                 </div>
-            </CollapsibleContent>
-        </Collapsible>
+            )}
+        </div>
     );
 };
 
@@ -43,11 +47,9 @@ interface ExplainSectionProps {
     modelId?: string;
     cost?: { totalCost: number };
     isFromCache?: boolean;
-    isEnabled: boolean;
     isLoading: boolean;
     isRegenerating: boolean;
     error?: Error | null;
-    onGenerate: () => void;
     onRegenerate: () => void;
     videoId: string;
 }
@@ -58,11 +60,9 @@ export const ExplainSection = ({
     modelId,
     cost,
     isFromCache,
-    isEnabled,
     isLoading,
     isRegenerating,
     error,
-    onGenerate,
     onRegenerate,
     videoId,
 }: ExplainSectionProps) => {
@@ -71,15 +71,6 @@ export const ExplainSection = ({
     const modelName = modelId ? getModelById(modelId).name : undefined;
     const loading = isLoading || isRegenerating;
     const hasContent = summary || (chapterSummaries && chapterSummaries.length > 0);
-
-    if (!isEnabled) {
-        return (
-            <Button variant="ghost" size="sm" className="gap-1.5 px-2" onClick={onGenerate}>
-                <MessageCircleQuestion size={14} />
-                Explain
-            </Button>
-        );
-    }
 
     return (
         <Collapsible open={open} onOpenChange={setOpen}>
@@ -134,7 +125,7 @@ export const ExplainSection = ({
                         </div>
                     )}
                     {!loading && chapterSummaries && chapterSummaries.length > 0 && (
-                        <div className="rounded-lg bg-muted/50 p-2">
+                        <div className="space-y-2">
                             {chapterSummaries.map((chapter, i) => (
                                 <ExplainChapterItem key={i} chapter={chapter} videoId={videoId} index={i} />
                             ))}
