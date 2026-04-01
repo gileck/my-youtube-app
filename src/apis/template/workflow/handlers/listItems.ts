@@ -102,6 +102,11 @@ export async function listItems(
                 type: doc.type,
                 status: doc.status || null,
                 reviewStatus: doc.reviewStatus || null,
+                priority: doc.priority,
+                size: doc.size,
+                complexity: doc.complexity,
+                domain: doc.domain,
+                description: doc.description,
                 content: {
                     type: 'Issue' as const,
                     number: doc.githubIssueNumber,
@@ -113,6 +118,9 @@ export async function listItems(
                 implementationPhase: doc.implementationPhase || null,
                 prData: Object.keys(prData).length > 0 ? prData : undefined,
                 history: (doc.history || []).slice().reverse(),
+                reviewed: doc.reviewed ?? false,
+                reviewSummary: doc.reviewSummary,
+                createdBy: doc.createdBy,
                 createdAt: new Date(doc.createdAt).toISOString(),
             };
         });

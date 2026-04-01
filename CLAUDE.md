@@ -247,6 +247,16 @@ CLI for managing GitHub pull requests. Use this when creating/managing PRs progr
 
 ---
 
+## iOS-Inspired UI Design Guidelines
+
+Design philosophy and iOS-inspired principles for UI components. Use this for understanding design patterns, advanced concepts (RTL, haptics, animations), and QA checklists.
+
+**Summary:** iOS-inspired design reference with semantic color tokens, 8px spacing grid, 44px touch targets, spring animations, dark mode handling, accessibility standards, and comprehensive QA checklists. Code examples use raw CSS/HTML — adapt to shadcn + Tailwind patterns when implementing.
+
+**Docs:** [ui-design-guidelines.md](docs/template/ui-design-guidelines.md)
+
+---
+
 ## Telegram Notifications (App Runtime)
 
 Application feature for sending notifications via Telegram. Use this when adding app notifications.
@@ -305,7 +315,7 @@ Architecture and flow of the AI-powered feature/bug pipeline. Use this to unders
 
 **Key Points:**
 - Entry points: UI feature request, UI bug report, or CLI
-- Agents: Product Design, Bug Investigator, Tech Design, Implementor, PR Review
+- Agents: Product Design, Bug Investigator, Tech Design, Implementor, PR Review, Workflow Review, Triage (standalone)
 - Status tracking: Source collections (high-level) + workflow-items collection (pipeline)
 - All actions logged to agent-logs/issue-N.md
 
@@ -315,15 +325,16 @@ Architecture and flow of the AI-powered feature/bug pipeline. Use this to unders
 
 ## Agent Workflow CLI
 
-CLI for managing feature requests and bug reports. Use this when working with `yarn agent-workflow` commands.
+CLI for managing workflow items. Use this when working with `yarn agent-workflow` commands.
 
-**Summary:** Commands: `start` (interactive), `create` (new item), `list` (filter items), `get` (details + live pipeline status), `update` (change status/priority). Supports `--auto-approve` and `--route` for automated workflows.
+**Summary:** Commands: `start` (interactive), `create` (new item), `list` (filter items), `get` (details + live pipeline status), `update` (change status/priority/size/complexity/domain). Supports `--auto-approve`, `--route`, and `--created-by` for automated workflows.
 
 **Key Points:**
-- list command: filter by --type, --status, --source
-- get command: shows live pipeline status
-- update command: change status/priority with --dry-run
-- ID prefix matching supported (first 8 chars of ObjectId)
+- list command: filter by --type, --status, --domain
+- get command: shows workflow item details (artifacts, history, createdBy, description)
+- update command: change status/priority/size/complexity/domain with --dry-run
+- ID lookup: workflow-item ObjectId, ID prefix (first 8 chars), or GitHub issue number
+- create command: creates GitHub issue + workflow-item directly (no source docs)
 
 **Docs:** [cli.md](docs/template/github-agents-workflow/cli.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md)
 
@@ -413,12 +424,31 @@ Complete documentation for the Bug Investigator agent and bug fix selection flow
 - Bugs auto-route to Bug Investigation on approval (no routing message)
 - Bug Investigator agent uses read-only tools (Glob, Grep, Read, WebFetch)
 - Investigation posted as GitHub issue comment with fix options
-- Obvious fixes (high confidence, S complexity) auto-submit without admin selection
+- Obvious fixes auto-submit when all conditions met: autoSubmit=true, high confidence, S complexity, destination=implement, and a recommended option exists
 - Admin selects fix approach via /decision/:issueNumber web UI (when not auto-submitted)
 - Routes to Tech Design (complex fixes) or Implementation (simple fixes)
 - Telegram notifications sent for auto-submits and manual submissions
 
 **Docs:** [bug-investigation.md](docs/template/github-agents-workflow/bug-investigation.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md)
+
+---
+
+## Workflow Review Agent
+
+Pipeline agent that reviews completed workflow items and creates improvement issues.
+
+**Summary:** Runs as the last step in the pipeline (after pr-review). Picks up Done items where reviewed !== true, analyzes their agent execution logs via LLM, appends [LOG:REVIEW] section to the log file, stores summary on the workflow item, sends Telegram notification, and creates improvement issues via agent-workflow create.
+
+**Key Points:**
+- Part of the pipeline — added to ALL_ORDER after pr-review, runs every cycle via --all
+- No local state — review state lives on the workflow item in MongoDB (reviewed, reviewSummary)
+- Skips items without local log files (agent-logs/issue-N.md)
+- Uses read-only tools (Read, Grep, Glob) to incrementally analyze logs
+- Creates workflow items for findings via yarn agent-workflow create (requires admin approval)
+- Appends [LOG:REVIEW] section to log file following .ai/commands/workflow-review.md format
+- Cross-references task runner logs (agent-tasks/all/runs/) for process-level debugging
+
+**Docs:** [workflow-review.md](docs/template/github-agents-workflow/workflow-review.md), [overview.md](docs/template/github-agents-workflow/overview.md), [running-agents.md](docs/template/github-agents-workflow/running-agents.md), [agent-logging.md](docs/template/github-agents-workflow/agent-logging.md)
 
 ---
 

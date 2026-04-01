@@ -6,6 +6,7 @@ import type {
     RoutingConfig,
     DecisionSelection,
 } from '@/apis/template/agent-decision/types';
+import type { WorkflowHistoryAction } from '@/apis/template/workflow/types';
 
 /**
  * Type of workflow item
@@ -81,7 +82,7 @@ export interface WorkflowItemArtifacts {
 // ============================================================
 
 export interface HistoryEntry {
-    action: string;           // 'feature_approved', 'routed', 'pr_merged', etc.
+    action: WorkflowHistoryAction | (string & {});
     description: string;      // 'Routed to Technical Design'
     timestamp: string;        // ISO 8601
     actor?: string;           // 'admin', 'agent:tech-design', 'system'
@@ -111,8 +112,15 @@ export interface WorkflowItemDocument {
     githubIssueUrl?: string;
     githubIssueTitle?: string;
     labels?: string[];
+    priority?: 'critical' | 'high' | 'medium' | 'low';
+    size?: 'XS' | 'S' | 'M' | 'L' | 'XL';
+    complexity?: 'High' | 'Medium' | 'Low';
+    domain?: string;
     artifacts?: WorkflowItemArtifacts;
     history?: HistoryEntry[];
+    reviewed?: boolean;
+    reviewSummary?: string;
+    createdBy?: string;
     createdAt: Date;
     updatedAt: Date;
 }

@@ -12,9 +12,11 @@ import type { UsageStats } from '../shared/types';
 // ============================================================
 
 /**
- * Available workflow names for library selection
+ * Available workflow names for library selection.
+ * Note: 'code-review' is used by the standalone repo-commits-code-reviewer
+ * and is distinct from the pipeline's 'pr-review' and 'workflow-review' stages.
  */
-export type WorkflowName = 'product-dev' | 'product-design' | 'tech-design' | 'bug-investigation' | 'implementation' | 'pr-review' | 'code-review';
+export type WorkflowName = 'product-dev' | 'product-design' | 'tech-design' | 'bug-investigation' | 'implementation' | 'pr-review' | 'code-review' | 'workflow-review' | 'triage';
 
 // ============================================================
 // AGENT LIBRARY ADAPTER INTERFACE
@@ -110,6 +112,8 @@ export interface AgentRunResult {
     usage: UsageStats | null;
     /** Execution time in seconds */
     durationSeconds: number;
+    /** Number of tool calls made during execution */
+    toolCallsCount?: number;
     /** Structured output when outputFormat is specified */
     structuredOutput?: unknown;
     /** Timeout diagnostic information (only present when agent timed out) */

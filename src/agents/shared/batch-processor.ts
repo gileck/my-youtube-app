@@ -10,6 +10,7 @@
 import { REVIEW_STATUSES } from './config';
 import { getProjectManagementAdapter, type ProjectItem } from '@/server/template/project-management';
 import { notifyBatchComplete } from './notifications';
+import { progress } from './console';
 import type { CommonCLIOptions, UsageStats } from './types';
 
 // ============================================================
@@ -35,6 +36,8 @@ export interface BatchConfig {
     skipItem?: (item: ProjectItem) => { skip: boolean; reason?: string };
     /** Optional: additional statuses to check for feedback items (e.g., implementAgent also checks prReview) */
     additionalFeedbackStatuses?: string[];
+    /** Optional: extra filters to pass to listItems (e.g., { domainMissing: true }) */
+    listOptions?: { domainMissing?: boolean };
 }
 
 export interface ProcessItemFn {
@@ -117,7 +120,7 @@ export async function runBatch(
         itemsToProcess.push({ item, mode, existingPR });
     } else {
         // Fetch all items in the agent's status
-        const allItems = await adapter.listItems({ status: config.agentStatus, limit: options.limit || 50 });
+        const allItems = await adapter.listItems({ status: config.agentStatus, limit: options.limit || 50, ...config.listOptions });
 
         // Flow A: New items (empty Review Status)
         const newItems = allItems.filter((item) => !item.reviewStatus);
@@ -200,10 +203,10 @@ export async function runBatch(
 
         console.log(`\n----------------------------------------`);
         console.log(`[${results.processed}/${itemsToProcess.length}] ${title}`);
-        console.log(`  Item ID: ${item.id}`);
-        console.log(`  Status: ${item.status}`);
+        progress(`Item ID: ${item.id}`);
+        progress(`Status: ${item.status}`);
         if (item.reviewStatus) {
-            console.log(`  Review Status: ${item.reviewStatus}`);
+            progress(`Review Status: ${item.reviewStatus}`);
         }
 
         // Check skip predicate
@@ -230,9 +233,9 @@ export async function runBatch(
     console.log('\n========================================');
     console.log('  Summary');
     console.log('========================================');
-    console.log(`  Processed: ${results.processed}`);
-    console.log(`  Succeeded: ${results.succeeded}`);
-    console.log(`  Failed: ${results.failed}`);
+    progress(`Processed: ${results.processed}`);
+    progress(`Succeeded: ${results.succeeded}`);
+    progress(`Failed: ${results.failed}`);
     console.log('========================================\n');
 
     // Send batch completion notification

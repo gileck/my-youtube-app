@@ -5,7 +5,7 @@ summary: "9-status workflow (Backlog → Product Development → Product Design 
 priority: 2
 key_points:
   - "Entry points: UI feature request, UI bug report, or CLI"
-  - "Agents: Product Design, Bug Investigator, Tech Design, Implementor, PR Review"
+  - "Agents: Product Design, Bug Investigator, Tech Design, Implementor, PR Review, Workflow Review, Triage (standalone)"
   - "Status tracking: Source collections (high-level) + workflow-items collection (pipeline)"
   - "All actions logged to agent-logs/issue-N.md"
 related_docs:
@@ -183,7 +183,7 @@ All transports -- Telegram, UI, CLI, and agents -- go through a unified service 
 │  MongoDB Collections:                                                   │
 │  ├── feature-requests  # Intake: title, description, priority, status  │
 │  ├── reports           # Intake: error, stack trace, session logs       │
-│  └── workflow-items    # Pipeline: workflow status, review status       │
+│  └── workflow-items    # Pipeline: status, review, priority, size, complexity, domain │
 └─────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -200,7 +200,12 @@ All transports -- Telegram, UI, CLI, and agents -- go through a unified service 
 │  │ shared/                                                           │  │
 │  │ ├── config.ts         # Agent-specific config + re-exports       │  │
 │  │ ├── claude.ts         # Claude SDK utilities                     │  │
-│  │ ├── notifications.ts  # Telegram notifications                   │  │
+│  │ ├── notifications/    # Telegram notifications (split module)     │  │
+│  │ ├── error-handler.ts  # Standardized agent error handling        │  │
+│  │ ├── main-factory.ts   # Agent entry point boilerplate            │  │
+│  │ ├── decision-utils.ts # Decision comment utilities               │  │
+│  │ ├── phase-resolution.ts # Shared phase resolution logic          │  │
+│  │ ├── console.ts        # CLI progress/warn formatting helpers     │  │
 │  │ ├── directory-lock.ts # Directory-level concurrency lock         │  │
 │  │ ├── prompts/          # Prompt templates (split by phase)        │  │
 │  │ │   ├── product-design.ts, technical-design.ts, etc.            │  │
@@ -221,7 +226,9 @@ Since all agents use the same bot account, each agent prefixes its comments with
 | Tech Design | 🏗️ | Tech Design Agent |
 | Implementor | ⚙️ | Implementor Agent |
 | PR Review | 👀 | PR Review Agent |
+| Workflow Review | 📋 | Workflow Review Agent |
 | Auto-Advance | ⏭️ | Auto-Advance Agent |
+| Triage | 🏷️ | Triage Agent |
 
 **Example Comments:**
 
@@ -331,4 +338,4 @@ When admin clicks "Request Changes":
 - **[workflow-items-architecture.md](./workflow-items-architecture.md)** - Workflow items data model and pipeline tracking
 - **[agent-logging.md](./agent-logging.md)** - Complete logging system documentation (CRITICAL)
 - **[directory-locking.md](./directory-locking.md)** - Directory-level lock for preventing concurrent agent runs
-- **Main integration docs**: [../github-projects-integration.md](../github-projects-integration.md)
+- **Technical reference**: [reference.md](./reference.md)

@@ -10,11 +10,46 @@
  * The factory returns a processItem function that handles the entire flow:
  *   validate -> log -> notify -> comments -> context -> prompt -> agent -> extract
  *   -> branch -> write -> commit -> push -> PR -> comment -> status -> notify
+ *
+ * Processing Pipeline:
+ *   1.  Validate input         — Ensure item has a linked issue; optionally skip bugs
+ *   2.  Initialize logging     — Create LogContext, call logExecutionStart()
+ *   3.  Send start notification— notifyAgentStarted() (skipped in dry-run)
+ *   4.  Load comments          — Fetch issue comments; in feedback/post-selection mode
+ *                                 also fetch PR comments and checkout the PR branch
+ *   5.  Check idempotency      — In 'new' mode, skip if design file already exists
+ *   6.  Load additional context— Hook for agent-specific context (e.g., product design
+ *                                 loads PDD, tech design loads product design doc)
+ *   7.  Determine mode & build — Select prompt builder based on mode (new, feedback,
+ *       prompt                    clarification, post-selection) and construct prompt
+ *   8.  Pre-agent branch setup — When allowWrite is enabled, create/checkout branch
+ *                                 BEFORE running agent so file writes land on the
+ *                                 design branch instead of main
+ *   9.  Run agent              — Execute via library adapter (runAgent)
+ *   10. Validate agent writes  — If allowWrite + allowedWritePaths, verify no files
+ *                                 were written outside permitted directories
+ *   11. Handle clarification   — If agent requests clarification, delegate to
+ *                                 handleClarificationRequest() and return early
+ *   12. Extract output         — Parse structured output / JSON / markdown fallback
+ *                                 to get designContent and optional summary comment
+ *   13. Branch & commit        — Create/checkout branch (if not done in step 8),
+ *                                 write design doc, commit, push
+ *   14. Create / update PR     — Open new PR or rely on push to update existing PR
+ *   15. Post PR comments       — Summary comment, addressed-feedback marker (in
+ *                                 feedback mode)
+ *   16. After-PR hook          — Agent-specific post-PR logic (e.g., tech design
+ *                                 posts phases comment, product design creates
+ *                                 decision/mock)
+ *   17. Save to S3             — Persist design content to S3 for cross-machine access
+ *   18. Update status          — Call completeAgentRun() to set review status
+ *   19. Send notification      — Telegram notification (default or agent-overridden)
+ *   20. Log execution end      — Record success, token usage, and cost
  */
 
 import { REVIEW_STATUSES } from './config';
 import { getProjectConfig } from './config';
 import type { CommonCLIOptions, GitHubComment } from './types';
+import { calcTotalTokens } from './types';
 import type { ProjectItemContent } from '@/server/template/project-management';
 import { getProjectManagementAdapter } from '@/server/template/project-management';
 import { runAgent, extractMarkdown, getLibraryForWorkflow, getModelForWorkflow } from '../lib';
@@ -22,6 +57,7 @@ import type { WorkflowName, AgentRunResult } from '../lib';
 import { notifyDesignPRReady, notifyAgentError, notifyAgentStarted } from './notifications';
 import { extractClarificationFromResult, handleClarificationRequest, getIssueType } from './utils';
 import { addAgentPrefix, type AgentName } from './agent-identity';
+import { progress } from './console';
 import {
     writeDesignDoc,
     readDesignDoc,
@@ -199,7 +235,22 @@ export interface DesignAgentConfig {
 
 /**
  * Creates a processItem function for a design agent.
- * The returned function handles the entire design agent flow.
+ *
+ * @param config - Agent-specific configuration that customizes the shared pipeline.
+ *   Key fields:
+ *   - workflow / phaseName / agentName — identity and logging
+ *   - designType — which design doc type to read/write (product-dev, product-design, tech-design)
+ *   - buildNewPrompt / buildFeedbackPrompt / buildClarificationPrompt — mode-specific prompt builders
+ *   - outputFormat / outputDesignField — how to parse the agent's response
+ *   - allowWrite / allowedWritePaths — opt-in file-write permission for the agent
+ *   - loadAdditionalContext — hook to inject extra context before prompt building
+ *   - afterPR — hook for post-PR actions (e.g., posting phases, creating decisions)
+ *   - overrideNotification — hook to replace the default Telegram notification
+ *
+ * @returns An async function with signature:
+ *   (processable: ProcessableItem, options: CommonCLIOptions, adapter: Adapter) =>
+ *     Promise<{ success: boolean; error?: string }>
+ *   This function handles the full pipeline from validation through notification.
  */
 export function createDesignProcessor(
     config: DesignAgentConfig
@@ -213,13 +264,18 @@ export function createDesignProcessor(
         const { item, mode, existingPR } = processable;
         const content = item.content;
 
+        // ============================================================
+        // STAGE 1: VALIDATE INPUT
+        // ============================================================
+
         if (!content || content.type !== 'Issue') {
             return { success: false, error: 'Item has no linked issue' };
         }
 
         const issueNumber = content.number!;
-        console.log(`\n  Processing issue #${issueNumber}: ${content.title}`);
-        console.log(`  Mode: ${config.modeLabels[mode] ?? mode}`);
+        console.log('');
+        progress(`Processing issue #${issueNumber}: ${content.title}`);
+        progress(`Mode: ${config.modeLabels[mode] ?? mode}`);
 
         // Check if this is a bug - optionally skip
         const issueType = getIssueType(content.labels);
@@ -233,11 +289,12 @@ export function createDesignProcessor(
             return { success: false, error: config.skipBugError || `Bug reports skip ${config.phaseName} by default` };
         }
 
-        // Get library and model for logging
+        // ============================================================
+        // STAGE 2: INITIALIZE LOGGING
+        // ============================================================
+
         const library = getLibraryForWorkflow(config.workflow);
         const model = await getModelForWorkflow(config.workflow);
-
-        // Create log context
         const logCtx = createLogContext({
             issueNumber,
             workflow: config.workflow as LogContext['workflow'],
@@ -257,7 +314,10 @@ export function createDesignProcessor(
         return runWithLogContext(logCtx, async () => {
             logExecutionStart(logCtx);
 
-            // Send "work started" notification
+            // ============================================================
+            // STAGE 3: SEND START NOTIFICATION
+            // ============================================================
+
             if (!options.dryRun) {
                 await notifyAgentStarted(config.phaseName, content.title, issueNumber, mode, issueType);
             }
@@ -266,7 +326,9 @@ export function createDesignProcessor(
             const originalBranch = getCurrentBranch();
 
             try {
-                // Always fetch issue comments - they provide context for any phase
+                // ============================================================
+                // STAGE 4: LOAD COMMENTS
+                // ============================================================
                 const comments = await adapter.getIssueComments(issueNumber);
                 let allComments: GitHubComment[] = comments.map((c) => ({
                     id: c.id,
@@ -276,7 +338,7 @@ export function createDesignProcessor(
                     updatedAt: c.updatedAt,
                 }));
                 if (allComments.length > 0) {
-                    console.log(`  Found ${allComments.length} comment(s) on issue`);
+                    progress(`Found ${allComments.length} comment(s) on issue`);
                 }
 
                 // In feedback/post-selection mode with existing PR, checkout the branch first
@@ -320,10 +382,15 @@ export function createDesignProcessor(
                     }
                 }
 
-                // Check for existing design in file (for idempotency / feedback mode)
+                // ============================================================
+                // STAGE 5: CHECK IDEMPOTENCY (existing design)
+                // ============================================================
+
                 const existingDesign = readDesignDoc(issueNumber, config.designType);
 
-                // Load additional context if configured
+                // ============================================================
+                // STAGE 6: LOAD ADDITIONAL CONTEXT
+                // ============================================================
                 let additionalContext: string | null = null;
                 if (config.loadAdditionalContext) {
                     const result = await config.loadAdditionalContext({
@@ -337,6 +404,10 @@ export function createDesignProcessor(
                         console.log(`  ${result.label}`);
                     }
                 }
+
+                // ============================================================
+                // STAGE 7: DETERMINE MODE & BUILD PROMPT
+                // ============================================================
 
                 let prompt: string;
                 const promptCtx: PromptContext = { content, allComments, additionalContext, issueNumber };
@@ -432,7 +503,9 @@ export function createDesignProcessor(
                     prompt = config.buildClarificationPrompt({ ...promptCtx, clarification });
                 }
 
-                // Resolve mode-dependent config values
+                // ============================================================
+                // STAGE 8: PRE-AGENT BRANCH SETUP (when allowWrite enabled)
+                // ============================================================
                 const resolvedOutputFormat = typeof config.outputFormat === 'function'
                     ? config.outputFormat(mode)
                     : config.outputFormat;
@@ -469,7 +542,10 @@ export function createDesignProcessor(
                     earlyBranchCreated = true;
                 }
 
-                // Run the agent
+                // ============================================================
+                // STAGE 9: RUN AGENT
+                // ============================================================
+
                 console.log('');
                 const progressLabel = config.progressLabels[mode] ?? `Processing ${mode}`;
 
@@ -493,7 +569,9 @@ export function createDesignProcessor(
                     return { success: false, error };
                 }
 
-                // Validate that agent writes are within allowed paths
+                // ============================================================
+                // STAGE 10: VALIDATE AGENT WRITES
+                // ============================================================
                 if (resolvedAllowWrite && config.allowedWritePaths && config.allowedWritePaths.length > 0 && earlyBranchCreated) {
                     const uncommitted = getUncommittedChanges();
                     if (uncommitted) {
@@ -505,11 +583,9 @@ export function createDesignProcessor(
                             return !config.allowedWritePaths!.some(allowed => filePath.startsWith(allowed));
                         });
                         if (violations.length > 0) {
-                            console.warn(`  Warning: Agent wrote files outside allowed paths:`);
-                            for (const v of violations) {
-                                console.warn(`    ${v}`);
-                            }
-                            console.warn(`  Allowed paths: ${config.allowedWritePaths.join(', ')}`);
+                            const violationMsg = `Agent wrote files outside allowed paths: ${violations.join(', ')}. Allowed: ${config.allowedWritePaths.join(', ')}`;
+                            console.warn(`  Warning: ${violationMsg}`);
+                            logError(logCtx, violationMsg, false);
                             // Revert unauthorized changes
                             git('checkout -- .', { silent: true });
                             console.warn('  Reverted unauthorized file changes');
@@ -517,7 +593,9 @@ export function createDesignProcessor(
                     }
                 }
 
-                // Check if agent needs clarification (in both raw content and structured output)
+                // ============================================================
+                // STAGE 11: HANDLE CLARIFICATION
+                // ============================================================
                 const clarificationRequest = extractClarificationFromResult(result);
                 if (clarificationRequest) {
                     console.log('  \uD83E\uDD14 Agent needs clarification');
@@ -534,7 +612,9 @@ export function createDesignProcessor(
                     );
                 }
 
-                // Extract structured output (with fallback to JSON/markdown extraction)
+                // ============================================================
+                // STAGE 12: EXTRACT OUTPUT
+                // ============================================================
                 let designContent: string | null = null;
                 let comment: string | undefined;
 
@@ -625,7 +705,9 @@ export function createDesignProcessor(
                     return { success: true };
                 }
 
-                // Checkout or create branch (skip if already on PR branch or created early for allowWrite)
+                // ============================================================
+                // STAGE 13: BRANCH, WRITE DESIGN, COMMIT, PUSH
+                // ============================================================
                 if (!alreadyOnPRBranch && !earlyBranchCreated) {
                     const isExistingBranch = existingPR || branchExistsLocally(branchName);
 
@@ -672,7 +754,10 @@ export function createDesignProcessor(
                 // Log GitHub actions
                 logGitHubAction(logCtx, 'branch', `${mode === 'new' ? 'Created' : 'Updated'} branch ${branchName}`);
 
-                // Create or get PR
+                // ============================================================
+                // STAGE 14: CREATE / UPDATE PR
+                // ============================================================
+
                 let prNumber: number;
                 let prUrl: string;
 
@@ -697,7 +782,9 @@ export function createDesignProcessor(
                     logGitHubAction(logCtx, 'pr', `Created PR #${prNumber}`);
                 }
 
-                // Post summary comment on PR (if available)
+                // ============================================================
+                // STAGE 15: POST PR COMMENTS
+                // ============================================================
                 if (comment) {
                     const prefixedComment = addAgentPrefix(config.agentName, comment);
                     await adapter.addPRComment(prNumber, prefixedComment);
@@ -718,7 +805,9 @@ ${comment}`;
                     logGitHubAction(logCtx, 'comment', 'Posted addressed feedback marker on PR');
                 }
 
-                // Run after-PR hook if configured (e.g., techDesign posts phases comment, productDesign creates decision)
+                // ============================================================
+                // STAGE 16: AFTER-PR HOOK
+                // ============================================================
                 if (config.afterPR && structuredOutput) {
                     await config.afterPR({
                         prNumber,
@@ -733,13 +822,17 @@ ${comment}`;
                     });
                 }
 
-                // Save design content to S3 (only when design content exists)
+                // ============================================================
+                // STAGE 17: SAVE TO S3
+                // ============================================================
                 if (designContent) {
                     try {
                         await saveDesignToS3(issueNumber, config.designType, designContent);
                         console.log(`  Design saved to S3: design-docs/issue-${issueNumber}/`);
                     } catch (s3Error) {
-                        console.warn(`  Warning: Failed to save design to S3 (non-fatal): ${s3Error instanceof Error ? s3Error.message : String(s3Error)}`);
+                        const s3ErrMsg = `Failed to save design to S3 (non-fatal): ${s3Error instanceof Error ? s3Error.message : String(s3Error)}`;
+                        console.warn(`  Warning: ${s3ErrMsg}`);
+                        logError(logCtx, s3ErrMsg, false);
                     }
                 }
 
@@ -747,14 +840,18 @@ ${comment}`;
                 checkoutBranch(originalBranch);
                 console.log(`  Returned to branch: ${originalBranch}`);
 
-                // Update review status via workflow service
+                // ============================================================
+                // STAGE 18: UPDATE STATUS
+                // ============================================================
                 const { completeAgentRun } = await import('@/server/template/workflow-service');
                 await completeAgentRun(issueNumber, config.designType, {
                     reviewStatus: completionReviewStatus,
                 });
                 console.log(`  Review Status updated to: ${completionReviewStatus}`);
 
-                // Send Telegram notification
+                // ============================================================
+                // STAGE 19: SEND NOTIFICATION
+                // ============================================================
                 let notificationOverridden = false;
                 if (config.overrideNotification) {
                     notificationOverridden = await config.overrideNotification({
@@ -771,11 +868,14 @@ ${comment}`;
                 }
                 console.log('  Telegram notification sent');
 
-                // Log execution end
+                // ============================================================
+                // STAGE 20: LOG EXECUTION END
+                // ============================================================
+
                 await logExecutionEnd(logCtx, {
                     success: true,
-                    toolCallsCount: 0,
-                    totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
+                    toolCallsCount: result.toolCallsCount ?? 0,
+                    totalTokens: calcTotalTokens(result.usage),
                     totalCost: result.usage?.totalCostUSD ?? 0,
                 });
 

@@ -48,6 +48,9 @@ export async function mergeFinalPR(
     // Get PR info for commit message
     const prInfo = await adapter.getPRInfo(prNumber);
     if (!prInfo) {
+        if (logExists(issueNumber)) {
+            logWebhookPhaseEnd(issueNumber, 'Final Review Merge', 'failed', 'webhook');
+        }
         return { success: false, error: 'Could not fetch PR info' };
     }
 
@@ -70,16 +73,23 @@ export async function mergeFinalPR(
         if (errorMsg.includes('already been merged') || errorMsg.includes('not open')) {
             mergeCommitSha = await adapter.getMergeCommitSha(prNumber);
         } else {
+            if (logExists(issueNumber)) {
+                logWebhookPhaseEnd(issueNumber, 'Final Review Merge', 'failed', 'webhook');
+            }
             throw mergeError;
         }
     }
 
     // Mark as Done
-    await markDone(issueNumber, {
-        logAction: 'status_done',
-        logDescription: 'Final PR merged, issue marked as Done',
-        logMetadata: { prNumber },
-    });
+    try {
+        await markDone(issueNumber, {
+            logAction: 'status_done',
+            logDescription: 'Final PR merged, issue marked as Done',
+            logMetadata: { prNumber },
+        });
+    } catch (error) {
+        console.error(`[MERGE_FINAL:CRITICAL] Failed to mark done for issue #${issueNumber}:`, error);
+    }
 
     // Clean up branches
     const artifact = await getArtifactsFromIssue(adapter, issueNumber);

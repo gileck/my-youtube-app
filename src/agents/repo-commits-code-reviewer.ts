@@ -24,6 +24,7 @@
  */
 
 import './shared/loadEnv';
+import { runAgentMain } from './shared/main-factory';
 import { spawnSync } from 'child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
@@ -334,6 +335,10 @@ function createIssue(finding: CodeReviewFinding, dryRun: boolean): void {
             '--description', description,
         ];
 
+        if (finding.size) args.push('--size', finding.size);
+        if (finding.complexity) args.push('--complexity', finding.complexity);
+        args.push('--created-by', 'repo-commits-code-reviewer');
+
         // Add client page route if the finding is route-specific
         if (finding.route) {
             args.push('--client-page-route', finding.route);
@@ -494,10 +499,6 @@ async function main() {
     }
 
     console.log('\nDone!');
-    process.exit(0);
 }
 
-main().catch((error) => {
-    console.error('Fatal error:', error);
-    process.exit(1);
-});
+runAgentMain(main);
