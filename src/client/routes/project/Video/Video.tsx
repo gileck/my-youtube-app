@@ -51,27 +51,13 @@ function ModelPicker({ actionType, videoId }: { actionType: string; videoId: str
             <SelectTrigger className="h-6 min-w-[120px] w-auto gap-1 border-none bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground shadow-none">
                 <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-                {cachedModels.length > 1 && (
-                    <SelectGroup>
-                        <SelectLabel>Cached Results</SelectLabel>
-                        {cachedModels.map((id) => {
-                            const allModels = groupedModels.flatMap(g => g.models);
-                            const model = allModels.find(m => m.id === id);
-                            return (
-                                <SelectItem key={`cached-${id}`} value={id}>
-                                    {model?.name ?? id} ✓
-                                </SelectItem>
-                            );
-                        })}
-                    </SelectGroup>
-                )}
+            <SelectContent position="popper" className="max-h-[300px] overflow-y-auto">
                 {groupedModels.map(({ tier, models }) => (
                     <SelectGroup key={tier}>
                         <SelectLabel>{tier}{!isAdmin && tier !== 'Budget' ? ' (Admin only)' : ''}</SelectLabel>
                         {models.map((model) => (
                             <SelectItem key={model.id} value={model.id} disabled={!isAdmin && tier !== 'Budget'}>
-                                {model.name} ({model.provider}){cachedModels.includes(model.id) ? ' ✓' : ''}
+                                {model.name}{cachedModels.includes(model.id) ? ' ✓' : ''}
                             </SelectItem>
                         ))}
                     </SelectGroup>
