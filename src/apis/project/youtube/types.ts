@@ -107,7 +107,7 @@ export interface GetTranscriptResponse {
 }
 
 // AI Action Types
-export type AIActionType = 'summary' | 'keypoints' | 'topics' | 'explain' | 'topic-expand' | 'subtopic-expand';
+export type AIActionType = 'summary' | 'keypoints' | 'topics' | 'explain' | 'deep-explain' | 'topic-expand' | 'subtopic-expand';
 
 // Get Video Summary
 export interface GetVideoSummaryRequest {
@@ -115,6 +115,7 @@ export interface GetVideoSummaryRequest {
     transcript: string;
     title: string;
     chapters?: Array<{ title: string; content: string; startTime: number }>;
+    chapterTitle?: string;
     bypassCache?: boolean;
     actionType?: AIActionType;
     topicTitle?: string;
@@ -140,10 +141,20 @@ export interface VideoTopic {
     keyPoints: TopicKeyPoint[];
 }
 
+export interface ExplainPoint {
+    title: string;
+    timestamp: number;
+    bullets: string[];
+    summary: string;
+    quote: string;
+}
+
 export interface GetVideoSummaryResponse {
     summary?: string;
     chapterSummaries?: ChapterSummary[];
     topics?: VideoTopic[];
+    explainPoints?: ExplainPoint[];
+    chapterContext?: string;
     modelId?: string;
     cost?: { totalCost: number };
     error?: string;

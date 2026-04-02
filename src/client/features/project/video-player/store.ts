@@ -34,7 +34,7 @@ export const useVideoPlayerStore = createStore<VideoPlayerState>({
             const fn = get()._seekFn;
             if (fn) {
                 fn(seconds);
-                set({ currentTime: seconds });
+                set({ currentTime: seconds, isPlaying: true });
             }
         },
 

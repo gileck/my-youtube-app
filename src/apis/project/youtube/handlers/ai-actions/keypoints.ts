@@ -3,7 +3,7 @@ import { processChaptersInParallel } from './utils';
 
 export const keypointsAction: AIAction = {
     cacheKey: 'video-keypoints',
-    cacheParams: (req) => ({ videoId: req.videoId }),
+    cacheParams: (req) => ({ videoId: req.videoId, ...(req.chapterTitle && { chapter: req.chapterTitle }) }),
 
     async execute({ request, adapter, modelId }: AIActionContext): Promise<AIActionResult> {
         const useChapters = request.transcript.length > SINGLE_PASS_CHAR_LIMIT

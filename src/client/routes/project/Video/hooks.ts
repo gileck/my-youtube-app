@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getVideoDetails, getTranscript, getVideoSummary } from '@/apis/project/youtube/client';
 import { useQueryDefaults } from '@/client/query/defaults';
@@ -7,7 +7,7 @@ import { useVideoUIToggle } from '@/client/features/project/video-ui-state';
 import { useSettingsStore } from '@/client/features/template/settings';
 import type { AIActionType, GetVideoDetailsResponse, GetTranscriptResponse, GetVideoSummaryResponse, TranscriptSegment, ChapterWithContent } from '@/apis/project/youtube/types';
 
-const TIMESTAMP_INTERVAL_SECONDS = 30;
+const TIMESTAMP_INTERVAL_SECONDS = 10;
 
 function formatSeconds(s: number): string {
     const mins = Math.floor(s / 60);
@@ -81,44 +81,53 @@ export function useTranscript(videoId: string) {
     return { ...query, hardRefresh };
 }
 
+const AI_OVERLAP_SECONDS = 5;
+
+function buildChapterTranscript(
+    actionType: AIActionType,
+    chapter: ChapterWithContent,
+    nextChapterStart: number | undefined,
+    segments: TranscriptSegment[] | undefined,
+) {
+    const overlapStart = Math.max(0, chapter.startTime - AI_OVERLAP_SECONDS);
+    const overlapEnd = (nextChapterStart ?? chapter.endTime) + AI_OVERLAP_SECONDS;
+    const aiSegments = segments?.filter(s =>
+        s.start_seconds >= overlapStart && s.start_seconds < overlapEnd
+    ) ?? chapter.segments;
+    return (actionType === 'topics' || actionType === 'explain' || actionType === 'deep-explain')
+        ? buildTimestampedTranscript(aiSegments)
+        : aiSegments.map(s => s.text).join(' ');
+}
+
 function useVideoAIAction(actionType: AIActionType, videoId: string, segments: TranscriptSegment[] | undefined, title: string | undefined, chapters: ChapterWithContent[] | undefined, description?: string) {
     const queryDefaults = useQueryDefaults();
     const queryClient = useQueryClient();
     const aiModel = useSettingsStore((s) => s.settings.aiModel);
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral loading indicator
-    const [isRegenerating, setIsRegenerating] = useState(false);
     const [isEnabled, setIsEnabled] = useVideoUIToggle(videoId, `aiAction:${actionType}`, false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral counter to trigger bypass cache on regenerate
+    const [regenVersion, setRegenVersion] = useState(0);
 
     const transcript = segments
-        ? (actionType === 'topics'
+        ? ((actionType === 'topics' || actionType === 'explain' || actionType === 'deep-explain')
             ? buildTimestampedTranscript(segments)
             : segments.map(s => s.text).join(' '))
         : '';
-    const AI_OVERLAP_SECONDS = 5;
     const chapterData = useMemo(
-        () => chapters?.map((c, i) => {
-            const overlapStart = Math.max(0, c.startTime - AI_OVERLAP_SECONDS);
-            const overlapEnd = (chapters[i + 1]?.startTime ?? c.endTime) + AI_OVERLAP_SECONDS;
-            const aiSegments = segments?.filter(s =>
-                s.start_seconds >= overlapStart && s.start_seconds < overlapEnd
-            ) ?? c.segments;
-            return {
-                title: c.title,
-                startTime: c.startTime,
-                content: actionType === 'topics'
-                    ? buildTimestampedTranscript(aiSegments)
-                    : aiSegments.map(s => s.text).join(' '),
-            };
-        }),
+        () => chapters?.map((c, i) => ({
+            title: c.title,
+            startTime: c.startTime,
+            content: buildChapterTranscript(actionType, c, chapters[i + 1]?.startTime, segments),
+        })),
         [chapters, segments, actionType]
     );
-    const queryKey = ['youtube', actionType, videoId];
+    const queryKey = useMemo(() => ['youtube', actionType, videoId, aiModel], [actionType, videoId, aiModel]);
 
     const query = useQuery({
         queryKey,
         queryFn: async (): Promise<GetVideoSummaryResponse> => {
+            const bypassCache = regenVersion > 0;
             try {
-                const response = await getVideoSummary({ videoId, transcript, title: title ?? '', chapters: chapterData, actionType, modelId: aiModel, description });
+                const response = await getVideoSummary({ videoId, transcript, title: title ?? '', actionType, modelId: aiModel, description, bypassCache });
                 if (response.data?.error) {
                     throw new Error(response.data.error);
                 }
@@ -141,11 +150,88 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
         setIsEnabled(false);
     }, [setIsEnabled]);
 
+    const regenerate = useCallback(() => {
+        setRegenVersion(v => v + 1);
+        queryClient.removeQueries({ queryKey: ['youtube', actionType, videoId, 'chapter', aiModel] });
+        queryClient.setQueryData(queryKey, undefined);
+        queryClient.refetchQueries({ queryKey });
+    }, [queryClient, queryKey, actionType, videoId, aiModel]);
+
+    return { ...query, isEnabled, generate, disable, regenerate, chapterData, regenVersion };
+}
+
+export function useChapterAIAction(
+    actionType: AIActionType,
+    videoId: string,
+    chapterTitle: string,
+    chapterContent: string,
+    videoTitle: string,
+    enabled: boolean,
+    description?: string,
+    bypassCache?: boolean,
+) {
+    const queryDefaults = useQueryDefaults();
+    const queryClient = useQueryClient();
+    const aiModel = useSettingsStore((s) => s.settings.aiModel);
+    const bypassRef = useRef(bypassCache ?? false);
+    if (bypassCache) bypassRef.current = true;
+    const queryKey = useMemo(() => ['youtube', actionType, videoId, 'chapter', aiModel, chapterTitle], [actionType, videoId, aiModel, chapterTitle]);
+
+    const query = useQuery({
+        queryKey,
+        queryFn: async (): Promise<GetVideoSummaryResponse & { _duration?: number }> => {
+            const shouldBypass = bypassRef.current;
+            bypassRef.current = false;
+            const timeout = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('Request timed out — try regenerating')), 120_000)
+            );
+            const start = Date.now();
+            try {
+                const response = await Promise.race([
+                    getVideoSummary({
+                        videoId,
+                        transcript: chapterContent,
+                        title: videoTitle,
+                        actionType,
+                        modelId: aiModel,
+                        chapterTitle,
+                        description,
+                        bypassCache: shouldBypass,
+                    }),
+                    timeout,
+                ]);
+                if (response.data?.error) {
+                    throw new Error(response.data.error);
+                }
+                recordApiCall('getVideoSummary', response.data?._isFromCache ?? false);
+                return { ...response.data, _duration: Date.now() - start };
+            } catch (error) {
+                recordApiError('getVideoSummary', false);
+                throw error;
+            }
+        },
+        enabled: enabled && !!chapterContent,
+        retry: 1,
+        ...queryDefaults,
+    });
+
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral loading indicator for chapter regeneration
+    const [isRegenerating, setIsRegenerating] = useState(false);
+
     const regenerate = useCallback(async () => {
         setIsRegenerating(true);
         queryClient.setQueryData(queryKey, undefined);
         try {
-            const response = await getVideoSummary({ videoId, transcript, title: title ?? '', chapters: chapterData, bypassCache: true, actionType, modelId: aiModel, description });
+            const response = await getVideoSummary({
+                videoId,
+                transcript: chapterContent,
+                title: videoTitle,
+                actionType,
+                modelId: aiModel,
+                chapterTitle,
+                description,
+                bypassCache: true,
+            });
             if (response.data?.error) {
                 throw new Error(response.data.error);
             }
@@ -156,9 +242,9 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
         } finally {
             setIsRegenerating(false);
         }
-    }, [videoId, transcript, title, queryClient, chapterData, actionType, aiModel, description]);
+    }, [queryClient, queryKey, videoId, chapterContent, videoTitle, actionType, aiModel, chapterTitle, description]);
 
-    return { ...query, isEnabled, generate, disable, isRegenerating, regenerate };
+    return { ...query, isRegenerating, regenerate };
 }
 
 export function useVideoSummary(videoId: string, segments: TranscriptSegment[] | undefined, title: string | undefined, chapters: ChapterWithContent[] | undefined) {
@@ -175,6 +261,10 @@ export function useVideoTopics(videoId: string, segments: TranscriptSegment[] | 
 
 export function useVideoExplain(videoId: string, segments: TranscriptSegment[] | undefined, title: string | undefined, description: string | undefined, chapters: ChapterWithContent[] | undefined) {
     return useVideoAIAction('explain', videoId, segments, title, chapters, description);
+}
+
+export function useVideoDeepExplain(videoId: string, segments: TranscriptSegment[] | undefined, title: string | undefined, description: string | undefined, chapters: ChapterWithContent[] | undefined) {
+    return useVideoAIAction('deep-explain', videoId, segments, title, chapters, description);
 }
 
 export function useTopicExpansion(videoId: string, topicTitle: string, segments: TranscriptSegment[] | undefined, videoTitle: string | undefined, chapterSegments?: TranscriptSegment[], storeKey?: string) {

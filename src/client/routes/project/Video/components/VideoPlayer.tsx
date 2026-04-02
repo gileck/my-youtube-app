@@ -39,8 +39,11 @@ export const VideoPlayer = ({ videoId }: VideoPlayerProps) => {
     const reset = useVideoPlayerStore((s) => s.reset);
 
     const savedTime = useVideoUIStateStore((s) => s.savedTimes[videoId] ?? 0);
+    const savedPlayingState = useVideoUIStateStore((s) => s.savedPlaying[videoId] ?? false);
     const setSavedTime = useVideoUIStateStore((s) => s.setSavedTime);
+    const setSavedPlaying = useVideoUIStateStore((s) => s.setSavedPlaying);
     const savedTimeRef = useRef(savedTime);
+    const savedPlayingRef = useRef(savedPlayingState);
 
     const startPolling = useCallback(() => {
         if (pollingRef.current) return;
@@ -70,16 +73,20 @@ export const VideoPlayer = ({ videoId }: VideoPlayerProps) => {
             events: {
                 onReady: ({ target }) => {
                     playerRef.current = target;
-                    registerSeekFn((seconds: number) => target.seekTo(seconds, true));
+                    registerSeekFn((seconds: number) => { target.seekTo(seconds, true); target.playVideo(); });
                     setIsPlayerReady(true);
                     if (savedTimeRef.current > 0) {
                         target.seekTo(savedTimeRef.current, true);
                         setCurrentTime(savedTimeRef.current);
                     }
+                    if (savedPlayingRef.current) {
+                        target.playVideo();
+                    }
                 },
                 onStateChange: ({ data }) => {
                     const playing = data === YTPlayerState.PLAYING;
                     setIsPlaying(playing);
+                    setSavedPlaying(videoId, playing);
                     if (playing) {
                         startPolling();
                     } else {

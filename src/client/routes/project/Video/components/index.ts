@@ -6,3 +6,4 @@ export { ChaptersSection } from './ChaptersSection';
 export { AIActionSection } from './AIActionSection';
 export { MainTopicsSection } from './MainTopicsSection';
 export { ExplainSection } from './ExplainSection';
+export { DeepExplainSection } from './DeepExplainSection';
