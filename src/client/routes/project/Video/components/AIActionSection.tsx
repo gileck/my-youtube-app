@@ -45,8 +45,10 @@ const ChapterSummaryLoader = ({ chapter, videoId, sectionKey, index, actionType,
     onLoaded?: () => void;
 }) => {
     const [open, setOpen] = useVideoUIToggle(videoId, `${sectionKey}:ch:${index}`, false);
+    const [prevOpen] = useVideoUIToggle(videoId, `${sectionKey}:ch:${index - 1}`, false);
+    const autoGenerate = index < 3;
     const { data, isLoading: queryLoading, error, regenerate, isRegenerating } = useChapterAIAction(
-        actionType, videoId, chapter.title, chapter.content, videoTitle, enabled, undefined, bypassCache,
+        actionType, videoId, chapter.title, chapter.content, videoTitle, enabled && (autoGenerate || open || prevOpen), undefined, bypassCache,
     );
 
     const loading = queryLoading || isRegenerating;

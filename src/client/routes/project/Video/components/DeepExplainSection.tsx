@@ -56,8 +56,10 @@ const DeepExplainChapterLoader = ({ chapter, videoId, index, videoTitle, descrip
     onLoaded?: () => void;
 }) => {
     const [isOpen, setIsOpen] = useVideoUIToggle(videoId, `deepExplain:${index}`, false);
+    const [prevOpen] = useVideoUIToggle(videoId, `deepExplain:${index - 1}`, false);
+    const autoGenerate = index < 3;
     const { data, isLoading: queryLoading, error, regenerate, isRegenerating } = useChapterAIAction(
-        'deep-explain', videoId, chapter.title, chapter.content, videoTitle, enabled, description, bypassCache,
+        'deep-explain', videoId, chapter.title, chapter.content, videoTitle, enabled && (autoGenerate || isOpen || prevOpen), description, bypassCache,
     );
 
     const seekTo = useSeekTo();

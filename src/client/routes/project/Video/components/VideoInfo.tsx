@@ -22,8 +22,9 @@ export const VideoInfo = ({ video }: VideoInfoProps) => {
     const { isBookmarked, toggle: toggleBookmark } = useBookmarkToggle(video);
     const [descExpanded, setDescExpanded] = useVideoUIToggle(video.id, 'descExpanded', false);
 
+    const hasChannel = video.channelId && video.channelTitle && video.channelTitle !== 'N/A';
     const handleChannelClick = () => {
-        navigate(`/channel/${video.channelId}`);
+        if (hasChannel) navigate(`/channel/${video.channelId}`);
     };
 
     return (
@@ -33,7 +34,7 @@ export const VideoInfo = ({ video }: VideoInfoProps) => {
             </h1>
 
             <div className="mt-2 flex items-center gap-3">
-                {video.channelImage && (
+                {video.channelImage && hasChannel && (
                     <img
                         src={video.channelImage}
                         alt={video.channelTitle}
@@ -42,12 +43,14 @@ export const VideoInfo = ({ video }: VideoInfoProps) => {
                     />
                 )}
                 <div>
+                    {hasChannel && (
                     <p
                         className="text-sm font-medium text-foreground cursor-pointer hover:underline"
                         onClick={handleChannelClick}
                     >
                         {video.channelTitle}
                     </p>
+                    )}
                     <p className="text-xs text-muted-foreground">
                         {formatCount(video.viewCount)} views
                         {video.likeCount && ` · ${formatCount(video.likeCount)} likes`}

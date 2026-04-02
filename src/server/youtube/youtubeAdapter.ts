@@ -18,6 +18,11 @@ import type {
 } from './types';
 import { youtubeCache, YOUTUBE_CACHE_TTL } from './youtubeCache';
 
+function filterNA(value: string | undefined | null): string | undefined {
+  if (!value || value === 'N/A') return undefined;
+  return value;
+}
+
 export const createYouTubeAdapter = (): YouTubeApiAdapter => {
   let innertubePromise: Promise<Innertube> | null = null;
 
@@ -48,8 +53,8 @@ export const createYouTubeAdapter = (): YouTubeApiAdapter => {
       title: video.title?.text || '',
       description: video.description || '',
       thumbnailUrl: video.thumbnails?.[0]?.url || '',
-      channelTitle: video.author?.name || '',
-      channelId: video.author?.id || '',
+      channelTitle: filterNA(video.author?.name) || '',
+      channelId: filterNA(video.author?.id) || '',
       publishedAt: video.published?.text || '',
       viewCount: video.view_count?.text || '0',
       duration: video.duration?.text || 'PT0S',
@@ -230,11 +235,11 @@ export const createYouTubeAdapter = (): YouTubeApiAdapter => {
                 String(videoInfo.basic_info.short_description || ''),
               thumbnailUrl: videoInfo.basic_info.thumbnail?.[0]?.url || '',
               channelTitle:
-                videoInfo.secondary_info?.owner?.author?.name ||
-                videoInfo.basic_info.channel?.name || '',
+                filterNA(videoInfo.secondary_info?.owner?.author?.name) ||
+                filterNA(videoInfo.basic_info.channel?.name) || '',
               channelId:
-                videoInfo.secondary_info?.owner?.author?.id ||
-                videoInfo.basic_info.channel?.id || '',
+                filterNA(videoInfo.secondary_info?.owner?.author?.id) ||
+                filterNA(videoInfo.basic_info.channel?.id) || '',
               publishedAt: videoInfo.primary_info?.published?.text || '',
               viewCount,
               duration:

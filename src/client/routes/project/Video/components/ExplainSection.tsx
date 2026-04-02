@@ -167,8 +167,10 @@ const ExplainChapterLoader = ({ chapter, videoId, index, videoTitle, description
     onLoaded?: () => void;
 }) => {
     const [isOpen, setIsOpen] = useVideoUIToggle(videoId, `explain:${index}`, false);
+    const [prevOpen] = useVideoUIToggle(videoId, `explain:${index - 1}`, false);
+    const autoGenerate = index < 3;
     const { data, isLoading: queryLoading, error, regenerate, isRegenerating } = useChapterAIAction(
-        'explain', videoId, chapter.title, chapter.content, videoTitle, enabled, description, bypassCache,
+        'explain', videoId, chapter.title, chapter.content, videoTitle, enabled && (autoGenerate || isOpen || prevOpen), description, bypassCache,
     );
 
     const loading = queryLoading || isRegenerating;

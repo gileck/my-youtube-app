@@ -12,7 +12,9 @@ Use this format:
 - End with a ## 🧠 Final takeaway section with bullet points summarizing the key points
 - After the final takeaway, add one line: 👉 *One sentence capturing the essential insight*
 
-Keep it simple — explain like you're talking to a smart friend, not writing an academic paper. Make it scannable and enjoyable to read.`;
+Keep it simple — explain like you're talking to a smart friend, not writing an academic paper. Make it scannable and enjoyable to read.
+
+IMPORTANT: Do NOT include any URLs, links, or markdown links. No [text](url) or raw URLs. Everything must be plain text and inline markdown only.`;
 
 function buildPrompt(title: string, transcript: string, description?: string, chapterTitle?: string): string {
     const descLine = description ? `\nDescription: "${description}"\n` : '';
