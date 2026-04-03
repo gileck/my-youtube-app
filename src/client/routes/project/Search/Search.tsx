@@ -4,13 +4,28 @@ import { Button } from '@/client/components/template/ui/button';
 import { LinearProgress } from '@/client/components/template/ui/linear-progress';
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { useRouter } from '@/client/features';
-import { Search as SearchIcon, X } from 'lucide-react';
+import { Search as SearchIcon, X, ClipboardPaste } from 'lucide-react';
 import { VideoGrid, useViewModeStore } from '@/client/features/project/video-card';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
 import { parseRelativeTimeToSeconds } from '@/common/utils/parseRelativeTime';
 import { useSearchStore } from './store';
 import { useSearchVideos, useSearchChannels } from './hooks';
 import { SearchFilters, ChannelCard, RecentSearches } from './components';
+
+function extractYouTubeVideoId(text: string): string | null {
+    try {
+        const url = new URL(text);
+        const hostname = url.hostname.replace('www.', '').replace('m.', '');
+        if (hostname === 'youtube.com') {
+            if (url.pathname.startsWith('/watch')) return url.searchParams.get('v');
+            if (url.pathname.startsWith('/shorts/')) return url.pathname.split('/shorts/')[1]?.split(/[?/]/)[0] || null;
+        }
+        if (hostname === 'youtu.be') return url.pathname.slice(1).split(/[?/]/)[0] || null;
+    } catch {
+        // Not a URL
+    }
+    return null;
+}
 
 const FILTER_LABELS: Record<string, Record<string, string>> = {
     sortBy: { date: 'Upload date', view_count: 'View count', rating: 'Rating' },
@@ -121,6 +136,27 @@ export const Search = () => {
         if (e.key === 'Enter') handleSearch();
     };
 
+    const handlePasteAndSearch = async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            const trimmed = text.trim();
+            if (!trimmed) return;
+
+            const videoId = extractYouTubeVideoId(trimmed);
+            if (videoId) {
+                navigate(`/video/${videoId}`);
+            } else {
+                setInputValue(trimmed);
+                setQuery(trimmed);
+                setPageNumber(1);
+                addRecentSearch(trimmed);
+                navigate('/?q=' + encodeURIComponent(trimmed), { replace: true });
+            }
+        } catch {
+            // Clipboard access denied - silently ignore
+        }
+    };
+
     // Active filter chips for summary
     const activeFilters: string[] = [];
     if (sortBy !== 'relevance' && FILTER_LABELS.sortBy[sortBy]) {
@@ -160,6 +196,9 @@ export const Search = () => {
                 </div>
                 <Button onClick={handleSearch} size="icon" aria-label="Search">
                     <SearchIcon size={18} />
+                </Button>
+                <Button onClick={handlePasteAndSearch} size="icon" variant="outline" aria-label="Paste and search">
+                    <ClipboardPaste size={18} />
                 </Button>
             </div>
 
