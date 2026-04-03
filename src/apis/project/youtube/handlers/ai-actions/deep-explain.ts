@@ -28,7 +28,7 @@ ${transcript}`;
 
 export const deepExplainAction: AIAction = {
     cacheKey: 'video-deep-explain',
-    cacheParams: (req) => ({ videoId: req.videoId, ...(req.chapterTitle && { chapter: req.chapterTitle }) }),
+    cacheParams: (req) => ({ videoId: req.videoId, ...(req.modelId && { modelId: req.modelId }), ...(req.chapterTitle && { chapter: req.chapterTitle }) }),
 
     async execute({ request, adapter, modelId }: AIActionContext): Promise<AIActionResult> {
         const prompt = buildPrompt(request.title, request.transcript, request.description, request.chapterTitle);

@@ -4,7 +4,7 @@ import { VideoTopic } from '../../types';
 
 export const topicsAction: AIAction = {
     cacheKey: 'video-topics',
-    cacheParams: (req) => ({ videoId: req.videoId }),
+    cacheParams: (req) => ({ videoId: req.videoId, ...(req.modelId && { modelId: req.modelId }) }),
 
     async execute({ request, adapter, modelId }: AIActionContext): Promise<AIActionResult> {
         const useChapterTopics = request.chapters && request.chapters.length > 1;

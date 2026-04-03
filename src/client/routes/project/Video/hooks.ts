@@ -120,6 +120,27 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
         })),
         [chapters, segments, actionType]
     );
+
+    // Auto-load: check S3 cache on mount (cacheOnly, no generation)
+    const cacheCheckKey = useMemo(() => ['youtube', actionType, videoId, aiModel, 'cacheCheck'], [actionType, videoId, aiModel]);
+    const cacheCheck = useQuery({
+        queryKey: cacheCheckKey,
+        queryFn: async (): Promise<GetVideoSummaryResponse> => {
+            try {
+                const response = await getVideoSummary({ videoId, transcript, title: title ?? '', actionType, modelId: aiModel, description, cacheOnly: true });
+                return response.data;
+            } catch {
+                return { _noCache: true };
+            }
+        },
+        enabled: !!videoId && !!segments && segments.length > 0,
+        ...queryDefaults,
+        staleTime: 60_000,
+    });
+
+    const hasCachedData = cacheCheck.data && !cacheCheck.data._noCache && !cacheCheck.data.error;
+
+    // Main query: fires when explicitly enabled OR when cache was found
     const queryKey = useMemo(() => ['youtube', actionType, videoId, aiModel], [actionType, videoId, aiModel]);
 
     const query = useQuery({
@@ -138,7 +159,9 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
                 throw error;
             }
         },
-        enabled: isEnabled && !!videoId && !!segments && segments.length > 0,
+        enabled: (isEnabled || !!hasCachedData) && !!videoId && !!segments && segments.length > 0,
+        // If cache check found data, use it as initial data
+        ...(hasCachedData ? { initialData: cacheCheck.data! } : {}),
         ...queryDefaults,
     });
 
@@ -157,7 +180,9 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
         queryClient.refetchQueries({ queryKey });
     }, [queryClient, queryKey, actionType, videoId, aiModel]);
 
-    return { ...query, isEnabled, generate, disable, regenerate, chapterData, regenVersion };
+    const effectiveEnabled = isEnabled || !!hasCachedData;
+
+    return { ...query, isEnabled: effectiveEnabled, generate, disable, regenerate, chapterData, regenVersion };
 }
 
 export function useChapterAIAction(

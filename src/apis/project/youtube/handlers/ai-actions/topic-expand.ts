@@ -2,7 +2,7 @@ import { AIAction, AIActionContext, AIActionResult } from './types';
 
 export const topicExpandAction: AIAction = {
     cacheKey: 'video-topic-expand',
-    cacheParams: (req) => ({ videoId: req.videoId, topicTitle: req.topicTitle! }),
+    cacheParams: (req) => ({ videoId: req.videoId, ...(req.modelId && { modelId: req.modelId }), topicTitle: req.topicTitle! }),
 
     validate: (req) => req.topicTitle ? null : 'topicTitle is required for topic-expand',
 

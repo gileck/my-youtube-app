@@ -117,6 +117,7 @@ export interface GetVideoSummaryRequest {
     chapters?: Array<{ title: string; content: string; startTime: number }>;
     chapterTitle?: string;
     bypassCache?: boolean;
+    cacheOnly?: boolean;
     actionType?: AIActionType;
     topicTitle?: string;
     modelId?: string;
@@ -159,6 +160,7 @@ export interface GetVideoSummaryResponse {
     cost?: { totalCost: number };
     error?: string;
     _isFromCache?: boolean;
+    _noCache?: boolean;
 }
 
 export interface ApiHandlerContext {
