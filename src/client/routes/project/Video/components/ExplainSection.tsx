@@ -68,63 +68,72 @@ const PointActions = ({ point, chapterTitle, context, videoTitle }: { point: Exp
             </Button>
             <Button variant="ghost" size="sm" onClick={handleOpenChat} className="h-6 gap-1 px-1.5 text-xs text-muted-foreground">
                 <ExternalLink size={12} />
-                Open in ChatGPT
+                Continue in ChatGPT
             </Button>
         </div>
     );
 };
 
-const ExplainPointItem = ({ point, chapterTitle, context, videoTitle }: { point: ExplainPoint; chapterTitle: string; context: string; videoTitle: string }) => {
+const ExplainPointItem = ({ point, chapterTitle, context, videoTitle, expanded, onToggle }: { point: ExplainPoint; chapterTitle: string; context: string; videoTitle: string; expanded: boolean; onToggle: () => void }) => {
     const seekTo = useSeekTo();
-    const handleSeek = () => seekTo(Math.max(0, point.timestamp - 5));
+    const handleSeek = (e: React.MouseEvent) => { e.stopPropagation(); seekTo(Math.max(0, point.timestamp - 5)); };
 
     return (
-        <div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-sm">
-            <div className="text-sm font-semibold text-foreground">{point.title}</div>
+        <div className="rounded-xl border border-border bg-card shadow-sm">
+            <button onClick={onToggle} className="w-full text-left p-3 flex items-center gap-2 hover:bg-muted/30 transition-colors rounded-xl cursor-pointer">
+                <span className="mt-0.5 shrink-0 text-muted-foreground">
+                    {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </span>
+                <span className="text-sm font-semibold text-foreground flex-1">{point.title}</span>
+                <span onClick={handleSeek} className="flex items-center gap-1 text-xs text-primary shrink-0 hover:opacity-70 transition-opacity">
+                    <Play size={10} fill="currentColor" />
+                    {formatTime(point.timestamp)}
+                </span>
+            </button>
 
-            {point.quote && (
-                <button
-                    onClick={handleSeek}
-                    className="w-full text-left rounded-lg bg-muted/60 p-2.5 cursor-pointer hover:bg-muted transition-colors"
-                >
-                    <div className="flex items-center gap-1.5 text-xs text-primary mb-1">
-                        <Play size={10} fill="currentColor" />
-                        {formatTime(point.timestamp)}
-                    </div>
-                    <span className="text-sm italic text-muted-foreground leading-relaxed">{point.quote}</span>
-                </button>
-            )}
+            {expanded && (
+                <div className="px-4 pb-4 space-y-3">
+                    {point.quote && (
+                        <div className="rounded-lg bg-muted/60 p-2.5">
+                            <span className="text-sm italic text-muted-foreground leading-relaxed">{point.quote}</span>
+                        </div>
+                    )}
 
-            {point.bullets?.length > 0 && (
-                <ul className="space-y-2 rounded-lg bg-muted/30 p-3">
-                    {point.bullets.map((b, i) => (
-                        <li key={i} className="text-sm text-foreground markdown-body leading-relaxed">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{b}</ReactMarkdown>
-                        </li>
-                    ))}
-                </ul>
-            )}
+                    {point.bullets?.length > 0 && (
+                        <ul className="space-y-2 rounded-lg bg-muted/30 p-3">
+                            {point.bullets.map((b, i) => (
+                                <li key={i} className="text-sm text-foreground markdown-body leading-relaxed">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{b}</ReactMarkdown>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
 
-            {point.summary && (
-                <div className="rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium text-foreground markdown-body">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{point.summary}</ReactMarkdown>
+                    {point.summary && (
+                        <div className="rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium text-foreground markdown-body">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{point.summary}</ReactMarkdown>
+                        </div>
+                    )}
+
+                    <PointActions point={point} chapterTitle={chapterTitle} context={context} videoTitle={videoTitle} />
                 </div>
             )}
-
-            <PointActions point={point} chapterTitle={chapterTitle} context={context} videoTitle={videoTitle} />
         </div>
     );
 };
 
-const ExplainPointsList = ({ points, chapterTitle, context, videoTitle }: { points: ExplainPoint[]; chapterTitle: string; context: string; videoTitle: string }) => (
-    <div className="space-y-3">
+const ExplainPointsList = ({ points, chapterTitle, context, videoTitle, expandedSet, onToggle }: {
+    points: ExplainPoint[]; chapterTitle: string; context: string; videoTitle: string;
+    expandedSet: Set<number>; onToggle: (index: number) => void;
+}) => (
+    <div className="space-y-2">
         {points.map((point, i) => (
-            <ExplainPointItem key={i} point={point} chapterTitle={chapterTitle} context={context} videoTitle={videoTitle} />
+            <ExplainPointItem key={i} point={point} chapterTitle={chapterTitle} context={context} videoTitle={videoTitle} expanded={expandedSet.has(i)} onToggle={() => onToggle(i)} />
         ))}
     </div>
 );
 
-const ChapterActions = ({ transcript, chapterTitle, videoTitle, onRegenerate }: { transcript: string; chapterTitle: string; videoTitle: string; onRegenerate: () => void }) => {
+const ChapterActions = ({ transcript, chapterTitle, videoTitle }: { transcript: string; chapterTitle: string; videoTitle: string }) => {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral clipboard feedback
     const [copied, setCopied] = useState(false);
     const handleCopy = async (e: React.MouseEvent) => {
@@ -139,19 +148,41 @@ const ChapterActions = ({ transcript, chapterTitle, videoTitle, onRegenerate }: 
         window.open(`https://chatgpt.com/?q=${encodeURIComponent(prompt)}`, '_blank');
     };
     return (
-        <div className="mb-2 flex flex-wrap gap-1">
-            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onRegenerate(); }} className="h-6 gap-1 px-1.5 text-xs text-muted-foreground">
-                <RefreshCw size={12} />
-                Regenerate
-            </Button>
+        <div className="mt-2 flex flex-wrap gap-1">
             <Button variant="ghost" size="sm" onClick={handleCopy} className="h-6 gap-1 px-1.5 text-xs text-muted-foreground">
                 {copied ? <Check size={12} /> : <Copy size={12} />}
                 {copied ? 'Copied' : 'Copy Transcript'}
             </Button>
             <Button variant="ghost" size="sm" onClick={handleOpenChat} className="h-6 gap-1 px-1.5 text-xs text-muted-foreground">
                 <ExternalLink size={12} />
-                Open in ChatGPT
+                Continue in ChatGPT
             </Button>
+        </div>
+    );
+};
+
+const ChapterOverview = ({ context, emoji, title, startTime, videoId, index }: { context: string; emoji?: string; title: string; startTime: number; videoId: string; index: number }) => {
+    const [open, setOpen] = useVideoUIToggle(videoId, `explainOverview:${index}`, false);
+    const seekTo = useSeekTo();
+    return (
+        <div className="rounded-xl border border-border bg-card shadow-sm">
+            <div className="w-full flex items-center gap-2 p-3 hover:bg-muted/30 transition-colors rounded-xl">
+                <button onClick={() => setOpen(!open)} className="flex flex-1 items-center gap-2 text-left cursor-pointer">
+                    <span className="shrink-0 text-muted-foreground">
+                        {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">{emoji && `${emoji} `}{title}</span>
+                </button>
+                <button onClick={() => seekTo(startTime)} className="flex items-center gap-1 text-xs text-primary shrink-0 hover:opacity-70 transition-opacity">
+                    <Play size={10} fill="currentColor" />
+                    {formatTime(startTime)}
+                </button>
+            </div>
+            {open && (
+                <div className="px-4 pb-4">
+                    <p className="text-sm text-muted-foreground leading-relaxed">{context}</p>
+                </div>
+            )}
         </div>
     );
 };
@@ -170,11 +201,23 @@ const ExplainChapterLoader = ({ chapter, videoId, index, videoTitle, description
     const [prevOpen] = useVideoUIToggle(videoId, `explain:${index - 1}`, false);
     const autoGenerate = index < 3;
     const { data, isLoading: queryLoading, error, regenerate, isRegenerating } = useChapterAIAction(
-        'explain', videoId, chapter.title, chapter.content, videoTitle, enabled && (autoGenerate || isOpen || prevOpen), description, bypassCache,
+        'explain', videoId, chapter.title, chapter.content, videoTitle, isOpen || (enabled && (autoGenerate || prevOpen)), description, bypassCache,
     );
 
+    const seekToFn = useSeekTo();
     const loading = queryLoading || isRegenerating;
     const points = data?.explainPoints;
+
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle for expand/collapse all points
+    const [expandedSet, setExpandedSet] = useState<Set<number>>(new Set());
+    const allExpanded = points ? expandedSet.size === points.length : false;
+    const toggleAll = () => {
+        if (allExpanded) setExpandedSet(new Set());
+        else setExpandedSet(new Set(points?.map((_, i) => i) ?? []));
+    };
+    const toggleOne = (i: number) => {
+        setExpandedSet(prev => { const next = new Set(prev); if (next.has(i)) next.delete(i); else next.add(i); return next; });
+    };
 
     const loadedRef = useRef(false);
     useEffect(() => {
@@ -186,28 +229,40 @@ const ExplainChapterLoader = ({ chapter, videoId, index, videoTitle, description
 
     return (
         <div className="rounded-lg border border-border bg-card/50 p-2">
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="flex w-full items-start gap-2 text-left"
-            >
-                <span className="mt-0.5 shrink-0 text-muted-foreground">
-                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                </span>
-                <span className="text-sm font-medium flex-1">{chapter.title}</span>
-                {loading && <span className="text-xs text-muted-foreground animate-pulse shrink-0">loading...</span>}
-                {!loading && points && points.length > 0 && (
-                    <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-1.5">
-                        {points.length} points
-                        {data?._duration != null && <span>· {(data._duration / 1000).toFixed(1)}s</span>}
+            <div className="flex w-full items-center gap-1.5">
+                <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="flex flex-1 items-start gap-2 text-left"
+                >
+                    <span className="mt-0.5 shrink-0 text-muted-foreground">
+                        {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </span>
+                    <span className="text-sm font-medium flex-1">{chapter.title}</span>
+                </button>
+                {!isOpen && !loading && (
+                    <button onClick={(e) => { e.stopPropagation(); seekToFn(chapter.startTime); }} className="flex items-center gap-1 text-xs text-primary shrink-0 hover:opacity-70 transition-opacity">
+                        <Play size={10} fill="currentColor" />
+                        {formatTime(chapter.startTime)}
+                    </button>
                 )}
-            </button>
+                {loading && <span className="text-xs text-muted-foreground animate-pulse shrink-0">loading...</span>}
+                {!loading && points && points.length > 0 && isOpen && (
+                    <Button variant="ghost" size="sm" onClick={toggleAll} className="h-6 px-2 text-xs text-muted-foreground shrink-0">
+                        {allExpanded ? 'Collapse All' : 'Expand All'}
+                    </Button>
+                )}
+                {!loading && points && points.length > 0 && !isOpen && (
+                    <Check size={14} className="text-primary shrink-0" />
+                )}
+                {!loading && points && (
+                    <button onClick={(e) => { e.stopPropagation(); regenerate(); }} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
+                        <RefreshCw size={13} />
+                    </button>
+                )}
+            </div>
 
             {isOpen && (
-                <div className="mt-2 sm:ml-5">
-                    {!loading && (
-                        <ChapterActions transcript={chapter.content} chapterTitle={chapter.title} videoTitle={videoTitle} onRegenerate={regenerate} />
-                    )}
+                <div className="mt-1.5 space-y-2">
                     {loading && (
                         <p className="text-sm text-muted-foreground animate-pulse">Generating explanation...</p>
                     )}
@@ -220,13 +275,19 @@ const ExplainChapterLoader = ({ chapter, videoId, index, videoTitle, description
                             </Button>
                         </div>
                     )}
+                    {!loading && data?.chapterContext && (
+                        <ChapterOverview context={data.chapterContext} emoji={data.chapterContextEmoji} title={chapter.title} startTime={chapter.startTime} videoId={videoId} index={index} />
+                    )}
                     {!loading && points && points.length > 0 && (
-                        <ExplainPointsList points={points} chapterTitle={chapter.title} context={data?.chapterContext ?? ''} videoTitle={videoTitle} />
+                        <ExplainPointsList points={points} chapterTitle={chapter.title} context={data?.chapterContext ?? ''} videoTitle={videoTitle} expandedSet={expandedSet} onToggle={toggleOne} />
                     )}
                     {!loading && (!points || points.length === 0) && data?.summary && (
                         <div className="markdown-body text-sm">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.summary}</ReactMarkdown>
                         </div>
+                    )}
+                    {!loading && (
+                        <ChapterActions transcript={chapter.content} chapterTitle={chapter.title} videoTitle={videoTitle} />
                     )}
                 </div>
             )}
@@ -300,6 +361,11 @@ export const ExplainSection = ({
 }: ExplainSectionProps) => {
     const hasContent = explainPoints && explainPoints.length > 0;
     const hasChapters = chapters && chapters.length > 1;
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle for non-chapter expand/collapse
+    const [expandedSet, setExpandedSet] = useState<Set<number>>(new Set());
+    const toggleOne = (i: number) => {
+        setExpandedSet(prev => { const next = new Set(prev); if (next.has(i)) next.delete(i); else next.add(i); return next; });
+    };
 
     return (
         <div className="space-y-2">
@@ -310,7 +376,7 @@ export const ExplainSection = ({
                 <p className="text-sm text-destructive">Failed to generate explanation: {error.message}</p>
             )}
             {!isLoading && hasContent && !hasChapters && (
-                <ExplainPointsList points={explainPoints!} chapterTitle={videoTitle ?? ''} context={chapterContext ?? ''} videoTitle={videoTitle ?? ''} />
+                <ExplainPointsList points={explainPoints!} chapterTitle={videoTitle ?? ''} context={chapterContext ?? ''} videoTitle={videoTitle ?? ''} expandedSet={expandedSet} onToggle={toggleOne} />
             )}
             {hasChapters && (
                 <BatchedChapterList

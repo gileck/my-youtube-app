@@ -39,7 +39,7 @@ const ChapterActions = ({ markdown, chapterTitle, videoTitle }: {
             </Button>
             <Button variant="ghost" size="sm" onClick={handleOpenChat} className="h-6 gap-1 px-1.5 text-xs text-muted-foreground">
                 <ExternalLink size={12} />
-                Open in ChatGPT
+                Continue in ChatGPT
             </Button>
         </div>
     );
@@ -59,7 +59,7 @@ const DeepExplainChapterLoader = ({ chapter, videoId, index, videoTitle, descrip
     const [prevOpen] = useVideoUIToggle(videoId, `deepExplain:${index - 1}`, false);
     const autoGenerate = index < 3;
     const { data, isLoading: queryLoading, error, regenerate, isRegenerating } = useChapterAIAction(
-        'deep-explain', videoId, chapter.title, chapter.content, videoTitle, enabled && (autoGenerate || isOpen || prevOpen), description, bypassCache,
+        'deep-explain', videoId, chapter.title, chapter.content, videoTitle, isOpen || (enabled && (autoGenerate || prevOpen)), description, bypassCache,
     );
 
     const seekTo = useSeekTo();
@@ -100,7 +100,7 @@ const DeepExplainChapterLoader = ({ chapter, videoId, index, videoTitle, descrip
             </button>
 
             {isOpen && (
-                <div className="mt-2 sm:ml-5">
+                <div className="mt-2">
                     {loading && (
                         <p className="text-sm text-muted-foreground animate-pulse">Generating deep explanation...</p>
                     )}
@@ -114,7 +114,7 @@ const DeepExplainChapterLoader = ({ chapter, videoId, index, videoTitle, descrip
                         </div>
                     )}
                     {!loading && markdown && (
-                        <div className="mt-3 rounded-xl bg-card p-4 shadow-sm markdown-body text-sm leading-relaxed">
+                        <div className="mt-2 rounded-xl bg-card p-3 shadow-sm markdown-body text-sm leading-relaxed">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
                         </div>
                     )}

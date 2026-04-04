@@ -1,10 +1,12 @@
 import { useMemo, useRef, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Sparkles, ListChecks, FileText, BookOpen, BookOpenText, RefreshCw } from 'lucide-react';
+import { Sparkles, ListChecks, FileText, BookOpen, BookOpenText, RefreshCw, Settings2 } from 'lucide-react';
 import { useRouter } from '@/client/features';
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { Button } from '@/client/components/template/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/client/components/template/ui/dialog';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/client/components/template/ui/select';
+import type { AILength, AILevel, AIStyle } from '@/apis/project/youtube/types';
 import { getModelsByTier } from '@/common/ai/models';
 import { useSettingsStore, useIsAdmin } from '@/client/features';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/client/components/template/ui/tabs';
@@ -67,8 +69,79 @@ function ModelPicker({ actionType, videoId }: { actionType: string; videoId: str
     );
 }
 
-function AIActionHeader({ actionType, videoId, cost, isFromCache, isLoading, onRegenerate }: {
-    actionType: string; videoId: string; cost?: { totalCost: number }; isFromCache?: boolean; isLoading: boolean; onRegenerate: () => void;
+const LENGTH_OPTIONS: { value: AILength; label: string }[] = [
+    { value: 'short', label: 'Short' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'long', label: 'Long' },
+];
+
+const LEVEL_OPTIONS: { value: AILevel; label: string }[] = [
+    { value: 'beginner', label: 'Beginner' },
+    { value: 'intermediate', label: 'Intermediate' },
+    { value: 'advanced', label: 'Advanced' },
+];
+
+const STYLE_OPTIONS: { value: AIStyle; label: string }[] = [
+    { value: 'conversational', label: 'Conversational' },
+    { value: 'educational', label: 'Educational' },
+    { value: 'professional', label: 'Professional' },
+];
+
+function OptionRow({ label, value, options, onChange }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (v: string) => void }) {
+    return (
+        <div className="space-y-1.5">
+            <span className="text-sm text-muted-foreground">{label}</span>
+            <div className="flex gap-1">
+                {options.map(opt => (
+                    <Button
+                        key={opt.value}
+                        variant={value === opt.value ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-8 flex-1 min-w-0 text-xs truncate"
+                        onClick={() => onChange(opt.value)}
+                    >
+                        {opt.label}
+                    </Button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function AIOptionsButton({ onGenerate }: { onGenerate: () => void }) {
+    const settings = useSettingsStore((s) => s.settings);
+    const update = useSettingsStore((s) => s.updateSettings);
+    const isDefault = settings.aiLength === 'medium' && settings.aiLevel === 'intermediate' && settings.aiStyle === 'conversational';
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 relative">
+                    <Settings2 size={14} />
+                    {!isDefault && <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary" />}
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="w-[calc(100vw-2rem)] max-w-sm">
+                <DialogHeader>
+                    <DialogTitle className="text-base">AI Options</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                    <OptionRow label="Length" value={settings.aiLength} options={LENGTH_OPTIONS} onChange={(v) => update({ aiLength: v as AILength })} />
+                    <OptionRow label="Level" value={settings.aiLevel} options={LEVEL_OPTIONS} onChange={(v) => update({ aiLevel: v as AILevel })} />
+                    <OptionRow label="Style" value={settings.aiStyle} options={STYLE_OPTIONS} onChange={(v) => update({ aiStyle: v as AIStyle })} />
+                    <DialogTrigger asChild>
+                        <Button className="w-full" onClick={onGenerate}>
+                            Generate
+                        </Button>
+                    </DialogTrigger>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function AIActionHeader({ actionType, videoId, cost, isFromCache, isLoading, onRegenerate, onGenerate }: {
+    actionType: string; videoId: string; cost?: { totalCost: number }; isFromCache?: boolean; isLoading: boolean; onRegenerate: () => void; onGenerate: () => void;
 }) {
     return (
         <div className="mb-2 flex items-center justify-between">
@@ -81,21 +154,46 @@ function AIActionHeader({ actionType, videoId, cost, isFromCache, isLoading, onR
                     </span>
                 )}
             </div>
-            <Button variant="ghost" size="sm" onClick={onRegenerate} disabled={isLoading} className="h-7 w-7 p-0">
-                <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-            </Button>
+            <div className="flex items-center gap-1">
+                <AIOptionsButton onGenerate={onGenerate} />
+                <Button variant="ghost" size="sm" onClick={onRegenerate} disabled={isLoading} className="h-7 w-7 p-0">
+                    <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+                </Button>
+            </div>
         </div>
     );
 }
 
 function EmptyAITab({ label, onGenerate }: { label: string; onGenerate: () => void }) {
+    const settings = useSettingsStore((s) => s.settings);
+    const update = useSettingsStore((s) => s.updateSettings);
+
     return (
-        <div className="flex flex-col items-center justify-center gap-3 py-10 text-muted-foreground">
-            <p className="text-sm">Tap to generate {label}</p>
-            <Button variant="outline" size="sm" onClick={onGenerate}>
-                Generate
-            </Button>
-        </div>
+        <Dialog>
+            <div className="flex flex-col items-center justify-center gap-3 py-10 text-muted-foreground">
+                <p className="text-sm">Tap to generate {label}</p>
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                        Generate
+                    </Button>
+                </DialogTrigger>
+            </div>
+            <DialogContent className="w-[calc(100vw-2rem)] max-w-sm">
+                <DialogHeader>
+                    <DialogTitle className="text-base">AI Options</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                    <OptionRow label="Length" value={settings.aiLength} options={LENGTH_OPTIONS} onChange={(v) => update({ aiLength: v as AILength })} />
+                    <OptionRow label="Level" value={settings.aiLevel} options={LEVEL_OPTIONS} onChange={(v) => update({ aiLevel: v as AILevel })} />
+                    <OptionRow label="Style" value={settings.aiStyle} options={STYLE_OPTIONS} onChange={(v) => update({ aiStyle: v as AIStyle })} />
+                    <DialogTrigger asChild>
+                        <Button className="w-full" onClick={onGenerate}>
+                            Generate {label}
+                        </Button>
+                    </DialogTrigger>
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -140,7 +238,7 @@ export const Video = () => {
     const hasChapters = transcript?.chapters && transcript.chapters.length > 0;
 
     return (
-        <div className="mx-auto max-w-3xl px-4 py-4">
+        <div className="mx-auto max-w-5xl px-2 sm:px-4 py-4">
             {detailsLoading && !video && <VideoDetailSkeleton />}
 
             {detailsError && (
@@ -209,7 +307,7 @@ export const Video = () => {
                                         <TabsContent value="explain" forceMount className={activeAITab !== 'explain' ? 'hidden' : ''}>
                                             {explainEnabled ? (
                                                 <>
-                                                <AIActionHeader actionType="explain" videoId={videoId} cost={explainData?.cost} isFromCache={explainData?._isFromCache} isLoading={explainLoading} onRegenerate={explainRegenerate} />
+                                                <AIActionHeader actionType="explain" videoId={videoId} cost={explainData?.cost} isFromCache={explainData?._isFromCache} isLoading={explainLoading} onRegenerate={explainRegenerate} onGenerate={explainGenerate} />
                                                 <ExplainSection
                                                     explainPoints={explainData?.explainPoints}
                                                     chapterContext={explainData?.chapterContext}
@@ -230,7 +328,7 @@ export const Video = () => {
                                         <TabsContent value="deep-explain" forceMount className={activeAITab !== 'deep-explain' ? 'hidden' : ''}>
                                             {deepExplainEnabled ? (
                                                 <>
-                                                <AIActionHeader actionType="deep-explain" videoId={videoId} cost={deepExplainData?.cost} isFromCache={deepExplainData?._isFromCache} isLoading={deepExplainLoading} onRegenerate={deepExplainRegenerate} />
+                                                <AIActionHeader actionType="deep-explain" videoId={videoId} cost={deepExplainData?.cost} isFromCache={deepExplainData?._isFromCache} isLoading={deepExplainLoading} onRegenerate={deepExplainRegenerate} onGenerate={deepExplainGenerate} />
                                                 <DeepExplainSection
                                                     summary={deepExplainData?.summary}
                                                     isLoading={deepExplainLoading}

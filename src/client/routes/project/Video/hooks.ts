@@ -5,7 +5,7 @@ import { useQueryDefaults } from '@/client/query/defaults';
 import { recordApiCall, recordApiError } from '@/client/features/project/cache-stats';
 import { useVideoUIToggle } from '@/client/features/project/video-ui-state';
 import { useSettingsStore } from '@/client/features/template/settings';
-import type { AIActionType, GetVideoDetailsResponse, GetTranscriptResponse, GetVideoSummaryResponse, TranscriptSegment, ChapterWithContent } from '@/apis/project/youtube/types';
+import type { AIActionType, AIOptions, GetVideoDetailsResponse, GetTranscriptResponse, GetVideoSummaryResponse, TranscriptSegment, ChapterWithContent } from '@/apis/project/youtube/types';
 
 const TIMESTAMP_INTERVAL_SECONDS = 10;
 
@@ -99,11 +99,28 @@ function buildChapterTranscript(
         : aiSegments.map(s => s.text).join(' ');
 }
 
+function useAIOptions(): AIOptions {
+    const length = useSettingsStore((s) => s.settings.aiLength);
+    const level = useSettingsStore((s) => s.settings.aiLevel);
+    const style = useSettingsStore((s) => s.settings.aiStyle);
+    return useMemo(() => ({ length, level, style }), [length, level, style]);
+}
+
+function optionsCacheSegment(options: AIOptions): string {
+    const parts: string[] = [];
+    if (options.length !== 'medium') parts.push(options.length ?? '');
+    if (options.level !== 'intermediate') parts.push(options.level ?? '');
+    if (options.style !== 'conversational') parts.push(options.style ?? '');
+    return parts.filter(Boolean).join(':') || 'default';
+}
+
 function useVideoAIAction(actionType: AIActionType, videoId: string, segments: TranscriptSegment[] | undefined, title: string | undefined, chapters: ChapterWithContent[] | undefined, description?: string) {
     const queryDefaults = useQueryDefaults();
     const queryClient = useQueryClient();
     const aiModel = useSettingsStore((s) => s.settings.aiModel);
-    const [isEnabled, setIsEnabled] = useVideoUIToggle(videoId, `aiAction:${actionType}`, false);
+    const aiOptions = useAIOptions();
+    const optsSeg = optionsCacheSegment(aiOptions);
+    const [isEnabled, setIsEnabled] = useVideoUIToggle(videoId, `aiAction:${actionType}:${aiModel}:${optsSeg}`, false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral counter to trigger bypass cache on regenerate
     const [regenVersion, setRegenVersion] = useState(0);
 
@@ -122,12 +139,12 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
     );
 
     // Auto-load: check S3 cache on mount (cacheOnly, no generation)
-    const cacheCheckKey = useMemo(() => ['youtube', actionType, videoId, aiModel, 'cacheCheck'], [actionType, videoId, aiModel]);
+    const cacheCheckKey = useMemo(() => ['youtube', actionType, videoId, aiModel, optsSeg, 'cacheCheck'], [actionType, videoId, aiModel, optsSeg]);
     const cacheCheck = useQuery({
         queryKey: cacheCheckKey,
         queryFn: async (): Promise<GetVideoSummaryResponse> => {
             try {
-                const response = await getVideoSummary({ videoId, transcript, title: title ?? '', actionType, modelId: aiModel, description, cacheOnly: true });
+                const response = await getVideoSummary({ videoId, transcript, title: title ?? '', actionType, modelId: aiModel, description, aiOptions, cacheOnly: true });
                 return response.data;
             } catch {
                 return { _noCache: true };
@@ -141,14 +158,14 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
     const hasCachedData = cacheCheck.data && !cacheCheck.data._noCache && !cacheCheck.data.error;
 
     // Main query: fires when explicitly enabled OR when cache was found
-    const queryKey = useMemo(() => ['youtube', actionType, videoId, aiModel], [actionType, videoId, aiModel]);
+    const queryKey = useMemo(() => ['youtube', actionType, videoId, aiModel, optsSeg], [actionType, videoId, aiModel, optsSeg]);
 
     const query = useQuery({
         queryKey,
         queryFn: async (): Promise<GetVideoSummaryResponse> => {
             const bypassCache = regenVersion > 0;
             try {
-                const response = await getVideoSummary({ videoId, transcript, title: title ?? '', actionType, modelId: aiModel, description, bypassCache });
+                const response = await getVideoSummary({ videoId, transcript, title: title ?? '', actionType, modelId: aiModel, description, aiOptions, bypassCache });
                 if (response.data?.error) {
                     throw new Error(response.data.error);
                 }
@@ -160,7 +177,6 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
             }
         },
         enabled: (isEnabled || !!hasCachedData) && !!videoId && !!segments && segments.length > 0,
-        // If cache check found data, use it as initial data
         ...(hasCachedData ? { initialData: cacheCheck.data! } : {}),
         ...queryDefaults,
     });
@@ -175,10 +191,10 @@ function useVideoAIAction(actionType: AIActionType, videoId: string, segments: T
 
     const regenerate = useCallback(() => {
         setRegenVersion(v => v + 1);
-        queryClient.removeQueries({ queryKey: ['youtube', actionType, videoId, 'chapter', aiModel] });
+        queryClient.removeQueries({ queryKey: ['youtube', actionType, videoId, 'chapter', aiModel, optsSeg] });
         queryClient.setQueryData(queryKey, undefined);
         queryClient.refetchQueries({ queryKey });
-    }, [queryClient, queryKey, actionType, videoId, aiModel]);
+    }, [queryClient, queryKey, actionType, videoId, aiModel, optsSeg]);
 
     const effectiveEnabled = isEnabled || !!hasCachedData;
 
@@ -198,9 +214,11 @@ export function useChapterAIAction(
     const queryDefaults = useQueryDefaults();
     const queryClient = useQueryClient();
     const aiModel = useSettingsStore((s) => s.settings.aiModel);
+    const aiOptions = useAIOptions();
+    const optsSeg = optionsCacheSegment(aiOptions);
     const bypassRef = useRef(bypassCache ?? false);
     if (bypassCache) bypassRef.current = true;
-    const queryKey = useMemo(() => ['youtube', actionType, videoId, 'chapter', aiModel, chapterTitle], [actionType, videoId, aiModel, chapterTitle]);
+    const queryKey = useMemo(() => ['youtube', actionType, videoId, 'chapter', aiModel, optsSeg, chapterTitle], [actionType, videoId, aiModel, optsSeg, chapterTitle]);
 
     const query = useQuery({
         queryKey,
@@ -221,6 +239,7 @@ export function useChapterAIAction(
                         modelId: aiModel,
                         chapterTitle,
                         description,
+                        aiOptions,
                         bypassCache: shouldBypass,
                     }),
                     timeout,
@@ -255,6 +274,7 @@ export function useChapterAIAction(
                 modelId: aiModel,
                 chapterTitle,
                 description,
+                aiOptions,
                 bypassCache: true,
             });
             if (response.data?.error) {
@@ -267,7 +287,7 @@ export function useChapterAIAction(
         } finally {
             setIsRegenerating(false);
         }
-    }, [queryClient, queryKey, videoId, chapterContent, videoTitle, actionType, aiModel, chapterTitle, description]);
+    }, [queryClient, queryKey, videoId, chapterContent, videoTitle, actionType, aiModel, chapterTitle, description, aiOptions]);
 
     return { ...query, isRegenerating, regenerate };
 }

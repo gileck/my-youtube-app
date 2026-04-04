@@ -1,4 +1,5 @@
 import { AIAction, AIActionContext, AIActionResult } from './types';
+import { buildOptionsPrompt, buildOptionsCacheKey } from './utils';
 
 const DEEP_EXPLAIN_PROMPT = `You are an expert educator. Explain the following video content simply and clearly.
 
@@ -28,10 +29,10 @@ ${transcript}`;
 
 export const deepExplainAction: AIAction = {
     cacheKey: 'video-deep-explain',
-    cacheParams: (req) => ({ videoId: req.videoId, ...(req.modelId && { modelId: req.modelId }), ...(req.chapterTitle && { chapter: req.chapterTitle }) }),
+    cacheParams: (req) => ({ videoId: req.videoId, ...(req.modelId && { modelId: req.modelId }), ...(req.chapterTitle && { chapter: req.chapterTitle }), ...buildOptionsCacheKey(req.aiOptions) }),
 
     async execute({ request, adapter, modelId }: AIActionContext): Promise<AIActionResult> {
-        const prompt = buildPrompt(request.title, request.transcript, request.description, request.chapterTitle);
+        const prompt = buildPrompt(request.title, request.transcript, request.description, request.chapterTitle) + buildOptionsPrompt(request.aiOptions);
         const response = await adapter.processPromptToText(prompt, 'getVideoSummary');
 
         return {

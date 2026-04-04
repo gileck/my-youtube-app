@@ -2,8 +2,13 @@
  * Settings Feature Types
  */
 
+import type { AILength, AILevel, AIStyle } from '@/apis/project/youtube/types';
+
 export interface Settings {
     aiModel: string;
+    aiLength: AILength;
+    aiLevel: AILevel;
+    aiStyle: AIStyle;
     theme: 'light' | 'dark';
     offlineMode: boolean;
     staleWhileRevalidate: boolean;
@@ -17,6 +22,9 @@ export interface Settings {
 
 export const defaultSettings: Settings = {
     aiModel: 'gemini-2.5-flash-lite',
+    aiLength: 'medium',
+    aiLevel: 'intermediate',
+    aiStyle: 'conversational',
     theme: 'light',
     offlineMode: false,
     staleWhileRevalidate: true,
