@@ -65,7 +65,11 @@
     "test:e2e": "vitest run --config vitest.config.ts",
     "pull": "git pull --no-edit && git push",
     "agent:workflow-review": "tsx src/agents/core-agents/workflowReviewAgent/index.ts",
-    "agent:triage": "tsx src/agents/core-agents/triageAgent/index.ts"
+    "agent:triage": "tsx src/agents/core-agents/triageAgent/index.ts",
+    "init:mcp": "tsx scripts/template/init-mcp.ts",
+    "generate-vapid": "tsx scripts/template/generate-vapid.ts",
+    "test-push": "tsx scripts/template/test-push.ts",
+    "daemon:dev": "tsx --watch src/server/template/rpc/daemon.ts --verbose"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.76",
@@ -115,7 +119,8 @@
     "tailwind-merge": "^3.3.1",
     "tiktoken": "^1.0.20",
     "youtubei.js": "^16.0.1",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "web-push": "^3.6.7"
   },
   "resolutions": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",
@@ -146,6 +151,7 @@
     "tsx": "^4.19.0",
     "typescript": "^5.0.0",
     "vite-tsconfig-paths": "^6.0.5",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "@types/web-push": "^3.6.4"
   }
 }

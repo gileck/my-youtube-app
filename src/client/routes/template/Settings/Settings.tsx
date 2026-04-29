@@ -36,7 +36,6 @@ export function Settings() {
                 <CacheSection onSnackbar={handleSnackbar} />
 
                 <hr className="my-4 border-border" />
-
                 <AIModelSection />
             </Card>
 

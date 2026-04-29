@@ -51,11 +51,21 @@ Complete guide to code validation - what checks exist, how they run locally and 
 
 ---
 
+## Admin-Approved Signups
+
+Gate new signups behind admin approval. Use this when setting up or customizing the admin approval flow.
+
+**Summary:** Enabled by default. New signups land in 'pending' status until an admin approves via /admin/approvals. First-user-wins bootstrap auto-approves the first signup on a fresh deployment. Admin (ADMIN_USER_ID) always bypasses the gate. Disable with requireAdminApproval: false in src/apis/auth-overrides.ts.
+
+**Docs:** [admin-approved-signups.md](docs/template/admin-approved-signups.md)
+
+---
+
 ## Authentication
 
 Instant-boot authentication pattern for PWA. Use this when working with auth flows.
 
-**Summary:** Uses `isProbablyLoggedIn` hint in localStorage for instant render, validates with server in background. JWT in HttpOnly cookie. Use `useUser()` for validated user, `useAuthStore(s => s.userPublicHint)` for instant-boot UI.
+**Summary:** Uses `isProbablyLoggedIn` hint in localStorage for instant render, validates with server in background. JWT in HttpOnly cookie. Use `useUser()` for validated user, `useAuthStore(s => s.userPublicHint)` for instant-boot UI. Child projects can override login/signup logic via `src/apis/auth-overrides.ts` and control UI via `src/client/auth-config.ts`.
 
 **Docs:** [authentication.md](docs/template/authentication.md)
 
@@ -165,6 +175,16 @@ iOS-specific keyboard and viewport issues. Use this when fixing iOS PWA bugs.
 
 ---
 
+## iOS PWA Push Notifications
+
+Web Push notifications for installed PWAs on iOS, Android, and desktop. Use this when adding user-facing push notifications.
+
+**Summary:** Web Push (VAPID) subscriptions. iOS works only from a home-screen-installed PWA on iOS 16.4+. Server uses `sendPushToUser(userId, payload)`; dead endpoints are auto-pruned on 404/410. Run `yarn generate-vapid` once to create keys.
+
+**Docs:** [ios-pwa-notifications.md](docs/template/ios-pwa-notifications.md)
+
+---
+
 ## Logging & Error Tracking
 
 Session logging with bug reporting. Use this when adding logging or debugging.
@@ -257,6 +277,16 @@ Design philosophy and iOS-inspired principles for UI components. Use this for un
 
 ---
 
+## MCP / SDK Programmatic Access
+
+Give agents and scripts typed, authenticated access to every app endpoint via a bearer-token + X-On-Behalf-Of pattern.
+
+**Summary:** Bake programmatic access into any child project: `ADMIN_API_TOKEN` + `X-On-Behalf-Of` lets a Node SDK or MCP server act as any user. Run `yarn init:mcp` to scaffold `packages/<name>-sdk/` and `packages/<name>-mcp/`.
+
+**Docs:** [mcp-sdk-access.md](docs/template/mcp-sdk-access.md), [admin.md](docs/template/admin.md), [authentication.md](docs/template/authentication.md)
+
+---
+
 ## Telegram Notifications (App Runtime)
 
 Application feature for sending notifications via Telegram. Use this when adding app notifications.
@@ -286,8 +316,9 @@ Generic remote function execution system for running server code on a local mach
 
 **Key Points:**
 - `src/server/template/rpc/` - Generic RPC system (zero project-specific code)
-- Start daemon: `yarn daemon` or `yarn daemon --verbose`
+- Start daemon: `yarn daemon` or `yarn daemon --verbose` (or `yarn daemon:dev` for tsx --watch + hot handler reload)
 - Handlers are modules with a default export async function
+- Child-project handlers MUST live under `src/server/project/**` — never under `src/server/template/` (gets overwritten on template sync)
 - Security: shared secret (RPC_SECRET env var) + path validation + file existence check
 - task-cli config: `agent-tasks/rpc-daemon/config.json`
 
@@ -311,15 +342,9 @@ Handling npm package issues in Wix corporate network. Use this if experiencing l
 
 Architecture and flow of the AI-powered feature/bug pipeline. Use this to understand the agent workflow system.
 
-**Summary:** 9-status workflow (Backlog → Product Development → Product Design → Bug Investigation → Tech Design → Ready for development → PR Review → Final Review → Done) with AI agents at each stage. Items enter via UI or CLI, get approved via Telegram, and progress through design and implementation phases automatically.
+**Summary:** 9-status pipeline (Backlog → Product Development → Product Design → Bug Investigation → Tech Design → Ready for development → PR Review → Final Review → Done). Items enter via UI or CLI, approve via Telegram, then flow through Product Design / Bug Investigator / Tech Design / Implementor / PR Review / Workflow Review agents. Dual-tracked in source collections + workflow-items; all actions log to `agent-logs/issue-N.md`.
 
-**Key Points:**
-- Entry points: UI feature request, UI bug report, or CLI
-- Agents: Product Design, Bug Investigator, Tech Design, Implementor, PR Review, Workflow Review, Triage (standalone)
-- Status tracking: Source collections (high-level) + workflow-items collection (pipeline)
-- All actions logged to agent-logs/issue-N.md
-
-**Docs:** [overview.md](docs/template/github-agents-workflow/overview.md), [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [cli.md](docs/template/github-agents-workflow/cli.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [bug-investigation.md](docs/template/github-agents-workflow/bug-investigation.md), [workflow-items-architecture.md](docs/template/github-agents-workflow/workflow-items-architecture.md), [agent-logging.md](docs/template/github-agents-workflow/agent-logging.md), [telegram-integration.md](docs/template/github-agents-workflow/telegram-integration.md), [running-agents.md](docs/template/github-agents-workflow/running-agents.md), [directory-locking.md](docs/template/github-agents-workflow/directory-locking.md), [workflow-service.md](docs/template/github-agents-workflow/workflow-service.md)
+**Docs:** [overview.md](docs/template/github-agents-workflow/overview.md), [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [cli.md](docs/template/github-agents-workflow/cli.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [workflow-items-architecture.md](docs/template/github-agents-workflow/workflow-items-architecture.md)
 
 ---
 
@@ -327,14 +352,7 @@ Architecture and flow of the AI-powered feature/bug pipeline. Use this to unders
 
 CLI for managing workflow items. Use this when working with `yarn agent-workflow` commands.
 
-**Summary:** Commands: `start` (interactive), `create` (new item), `list` (filter items), `get` (details + live pipeline status), `update` (change status/priority/size/complexity/domain). Supports `--auto-approve`, `--route`, and `--created-by` for automated workflows.
-
-**Key Points:**
-- list command: filter by --type, --status, --domain
-- get command: shows workflow item details (artifacts, history, createdBy, description)
-- update command: change status/priority/size/complexity/domain with --dry-run
-- ID lookup: workflow-item ObjectId, ID prefix (first 8 chars), or GitHub issue number
-- create command: creates GitHub issue + workflow-item directly (no source docs)
+**Summary:** `yarn agent-workflow` commands: `start` (interactive), `create`, `list` (filter by --type/--status/--domain), `get` (details + live status), `update` (status/priority/size/complexity/domain, supports --dry-run). ID lookup accepts ObjectId, 8-char prefix, or GitHub issue number. Flags: `--auto-approve`, `--route`, `--created-by`.
 
 **Docs:** [cli.md](docs/template/github-agents-workflow/cli.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md)
 
@@ -352,22 +370,6 @@ Directory-level lock for preventing concurrent agent runs on same working direct
 
 ## GitHub Agents Workflow Setup
 
-Complete setup instructions for GitHub Projects and AI agents. Use this when setting up the workflow for the first time.
-
-**Summary:** Setup requires: GitHub Project with 6-column Status field and Review Status field, two GitHub tokens (admin + bot), optional Telegram integration. Run `yarn verify-setup` to check configuration.
-
-**Key Points:**
-- Create GitHub Project with 6-column Status field
-- Create Review Status field (Waiting for Review, Approved, Request Changes, Rejected)
-- Two tokens: GITHUB_TOKEN (admin/projects) + GITHUB_BOT_TOKEN (PRs/issues)
-- Optional: Telegram topics for organized notifications
-
-**Docs:** [setup-guide-legacy-github-projects.md](docs/template/github-agents-workflow/setup-guide-legacy-github-projects.md), [overview.md](docs/template/github-agents-workflow/overview.md), [telegram-notifications.md](docs/template/telegram-notifications.md)
-
----
-
-## GitHub Agents Workflow Setup
-
 Complete setup instructions for the GitHub agents workflow. Use this when setting up the workflow for the first time.
 
 **Summary:** Setup requires: GitHub tokens (admin + bot), MongoDB connection, optional Telegram integration. Pipeline status tracked in workflow-items MongoDB collection. Run `yarn verify-setup` to check configuration.
@@ -379,6 +381,128 @@ Complete setup instructions for the GitHub agents workflow. Use this when settin
 - Optional: Claude GitHub App for automated PR reviews
 
 **Docs:** [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-items-architecture.md](docs/template/github-agents-workflow/workflow-items-architecture.md), [telegram-notifications.md](docs/template/telegram-notifications.md)
+
+---
+
+## Guards and Hooks
+
+**Summary:** Complete catalog of guards (precondition checks) and hooks (side effects) extracted from current workflow-service functions, with registry design and function mapping table.
+
+**Docs:** [guards-and-hooks.md](docs/template/github-agents-workflow/new-pipeline-architecture/guards-and-hooks.md)
+
+---
+
+## Implementation Roadmap
+
+**Summary:** Phase dependency graph, progress tracking, and execution order for the 8-phase pipeline architecture migration.
+
+**Docs:** [overview.md](docs/template/github-agents-workflow/new-pipeline-architecture/implementation/overview.md)
+
+---
+
+## Phase 1: Foundation
+
+**Summary:** Create type system, engine skeleton, guard/hook registries, and DB schema changes for the pipeline architecture.
+
+**Docs:** [phase-1-foundation.md](docs/template/github-agents-workflow/new-pipeline-architecture/implementation/phase-1-foundation.md)
+
+---
+
+## Phase 2: Guards and Hooks
+
+**Summary:** Extract all precondition checks and side effects from current workflow-service functions into standalone guard and hook modules.
+
+**Docs:** [phase-2-guards-and-hooks.md](docs/template/github-agents-workflow/new-pipeline-architecture/implementation/phase-2-guards-and-hooks.md)
+
+---
+
+## Phase 3: Pipeline Definitions
+
+**Summary:** Create the two pipeline definition const objects (feature, bug) with unit tests validating internal consistency.
+
+**Docs:** [phase-3-pipeline-definitions.md](docs/template/github-agents-workflow/new-pipeline-architecture/implementation/phase-3-pipeline-definitions.md)
+
+---
+
+## Phase 4: Engine Core
+
+**Summary:** Implement the pipeline engine with transition validation, guard execution, hook orchestration, dual-write, and concurrency control.
+
+**Docs:** [phase-4-engine-core.md](docs/template/github-agents-workflow/new-pipeline-architecture/implementation/phase-4-engine-core.md)
+
+---
+
+## Phase 5: Internal Migration
+
+**Summary:** Refactor each workflow-service function into a thin wrapper around the pipeline engine, one function at a time with E2E validation after each.
+
+**Docs:** [phase-5-internal-migration.md](docs/template/github-agents-workflow/new-pipeline-architecture/implementation/phase-5-internal-migration.md)
+
+---
+
+## Phase 6: External Migration
+
+**Summary:** Migrate all transport layer callers (Telegram handlers, API handlers, CLI, agents) from direct workflow-service function calls to engine-based calls.
+
+**Docs:** [phase-6-external-migration.md](docs/template/github-agents-workflow/new-pipeline-architecture/implementation/phase-6-external-migration.md)
+
+---
+
+## Phase 7: Cleanup
+
+**Summary:** Remove deprecated function bodies, old constants, and unused code after all callers have been migrated to the pipeline engine.
+
+**Docs:** [phase-7-cleanup.md](docs/template/github-agents-workflow/new-pipeline-architecture/implementation/phase-7-cleanup.md)
+
+---
+
+## Phase 8: Verification & Review
+
+**Summary:** Verify that all known concerns, edge cases, and awareness items from the design review are properly handled in the final implementation.
+
+**Docs:** [phase-8-verification.md](docs/template/github-agents-workflow/new-pipeline-architecture/implementation/phase-8-verification.md)
+
+---
+
+## Pipeline Architecture Overview
+
+Use this to understand the new pipeline architecture design, its motivation, and how it replaces the current workflow-service implementation.
+
+**Summary:** JSON-driven pipeline engine replacing unvalidated status transitions with declared state machines, validated by a generic engine with registered hooks and guards.
+
+**Docs:** [overview.md](docs/template/github-agents-workflow/new-pipeline-architecture/overview.md)
+
+---
+
+## Pipeline Definition Schema
+
+**Summary:** TypeScript interfaces and design decisions for declaring pipeline statuses, transitions, guards, hooks, and review flows as typed const objects.
+
+**Docs:** [pipeline-schema.md](docs/template/github-agents-workflow/new-pipeline-architecture/pipeline-schema.md)
+
+---
+
+## Pipeline Definitions
+
+**Summary:** Design notes for the two pipeline definitions (feature, bug) including status maps, transition overviews, multi-phase handling, and undo semantics.
+
+**Docs:** [pipeline-definitions.md](docs/template/github-agents-workflow/new-pipeline-architecture/pipeline-definitions.md)
+
+---
+
+## Pipeline Engine
+
+**Summary:** Pipeline engine interface, concurrency model, dual-write pattern, and agent integration for executing validated state transitions.
+
+**Docs:** [engine.md](docs/template/github-agents-workflow/new-pipeline-architecture/engine.md)
+
+---
+
+## Testing Strategy
+
+**Summary:** E2E test strategy using existing tests as regression validation, with no test changes needed during migration since exported function signatures are preserved.
+
+**Docs:** [testing.md](docs/template/github-agents-workflow/new-pipeline-architecture/testing.md)
 
 ---
 
@@ -418,18 +542,19 @@ Visual workflows for all workflow scenarios. Use this to understand specific flo
 
 Complete documentation for the Bug Investigator agent and bug fix selection flow.
 
-**Summary:** Bugs are auto-routed to Bug Investigation on approval. The Bug Investigator agent performs read-only investigation, posts root cause analysis with fix options. For obvious simple fixes (high confidence, S complexity), the agent auto-submits the fix. Otherwise, admin selects a fix approach via web UI to route to Tech Design or Implementation. Telegram notifications are sent for both auto-submitted and manually selected decisions.
-
-**Key Points:**
-- Bugs auto-route to Bug Investigation on approval (no routing message)
-- Bug Investigator agent uses read-only tools (Glob, Grep, Read, WebFetch)
-- Investigation posted as GitHub issue comment with fix options
-- Obvious fixes auto-submit when all conditions met: autoSubmit=true, high confidence, S complexity, destination=implement, and a recommended option exists
-- Admin selects fix approach via /decision/:issueNumber web UI (when not auto-submitted)
-- Routes to Tech Design (complex fixes) or Implementation (simple fixes)
-- Telegram notifications sent for auto-submits and manual submissions
+**Summary:** On approval, bugs auto-route to Bug Investigation. The agent runs read-only analysis and posts a GitHub comment with root cause + fix options. Obvious fixes (high confidence + S complexity + destination=implement) auto-submit; otherwise admin picks an option at /decision/:issueNumber, routing to Tech Design or Implementation. Telegram notifications fire either way.
 
 **Docs:** [bug-investigation.md](docs/template/github-agents-workflow/bug-investigation.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md)
+
+---
+
+## GitHub Agents Workflow Setup (Legacy — GitHub Projects)
+
+Legacy setup using GitHub Projects for pipeline status. Prefer the MongoDB-based setup in setup-guide.md.
+
+**Summary:** Legacy flow backed by a GitHub Project (6-column Status field + Review Status field). Requires admin + bot tokens. Prefer setup-guide.md (MongoDB-based) for new installs.
+
+**Docs:** [setup-guide-legacy-github-projects.md](docs/template/github-agents-workflow/setup-guide-legacy-github-projects.md), [overview.md](docs/template/github-agents-workflow/overview.md), [telegram-notifications.md](docs/template/telegram-notifications.md)
 
 ---
 
@@ -437,16 +562,7 @@ Complete documentation for the Bug Investigator agent and bug fix selection flow
 
 Pipeline agent that reviews completed workflow items and creates improvement issues.
 
-**Summary:** Runs as the last step in the pipeline (after pr-review). Picks up Done items where reviewed !== true, analyzes their agent execution logs via LLM, appends [LOG:REVIEW] section to the log file, stores summary on the workflow item, sends Telegram notification, and creates improvement issues via agent-workflow create.
-
-**Key Points:**
-- Part of the pipeline — added to ALL_ORDER after pr-review, runs every cycle via --all
-- No local state — review state lives on the workflow item in MongoDB (reviewed, reviewSummary)
-- Skips items without local log files (agent-logs/issue-N.md)
-- Uses read-only tools (Read, Grep, Glob) to incrementally analyze logs
-- Creates workflow items for findings via yarn agent-workflow create (requires admin approval)
-- Appends [LOG:REVIEW] section to log file following .ai/commands/workflow-review.md format
-- Cross-references task runner logs (agent-tasks/all/runs/) for process-level debugging
+**Summary:** Last pipeline step (after pr-review). Picks up Done items where `reviewed !== true`, analyzes agent logs via LLM (read-only tools), appends `[LOG:REVIEW]` to `agent-logs/issue-N.md`, stores `reviewSummary` on the workflow item, sends Telegram, and files improvement issues via `yarn agent-workflow create` (admin-approved). Skips items without local logs.
 
 **Docs:** [workflow-review.md](docs/template/github-agents-workflow/workflow-review.md), [overview.md](docs/template/github-agents-workflow/overview.md), [running-agents.md](docs/template/github-agents-workflow/running-agents.md), [agent-logging.md](docs/template/github-agents-workflow/agent-logging.md)
 

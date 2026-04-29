@@ -2,7 +2,10 @@
   "templateRepo": "git@github.com:gileck/app-template-ai.git",
   "templateBranch": "main",
   "templateLocalPath": "/Users/gileck/Projects/app-template-ai",
-  "lastSyncCommit": "94c800f9ff961639cf0d4dc139524603c3303bd0",
-  "lastSyncDate": "2026-04-02T09:22:52.323Z",
-  "projectOverrides": []
+  "lastSyncCommit": "d50eb40fffa6735af96dbebfaeac2fa43795d17b",
+  "lastSyncDate": "2026-04-29T09:30:13.785Z",
+  "projectOverrides": [
+    "src/client/features/template/settings/types.ts",
+    "src/client/components/template/ui/tabs.tsx"
+  ]
 }

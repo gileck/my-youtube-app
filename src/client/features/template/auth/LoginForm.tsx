@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
-import { Eye, EyeOff, User, Mail, Lock, ArrowRight, UserPlus, AlertCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Eye, EyeOff, User, Mail, Lock, ArrowRight, UserPlus, AlertCircle, Clock } from 'lucide-react';
 import { useAuthStore } from './store';
 import { useLogin, useRegister } from './hooks';
 import { useLoginFormValidator } from './useLoginFormValidator';
 import { isNetworkError, cleanErrorMessage as cleanApiErrorMessage } from '../error-tracking/errorUtils';
 import type { LoginFormState } from './types';
 import { cn } from '@/client/lib/utils';
+import { authConfig } from '@/client/auth-config';
+import { useRouter } from '../router';
+import { savePendingLoginApproval } from './login-approval-storage';
 
 export const LoginForm = () => {
     const error = useAuthStore((state) => state.error);
     const setError = useAuthStore((state) => state.setError);
+    const { currentPath, navigate } = useRouter();
 
     const loginMutation = useLogin();
     const registerMutation = useRegister();
@@ -18,6 +22,7 @@ export const LoginForm = () => {
 
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral form mode toggle
     const [isRegistering, setIsRegistering] = useState(false);
+    const canRegister = authConfig.allowRegistration;
     // eslint-disable-next-line state-management/prefer-state-architecture -- form input before submission
     const [formData, setFormData] = useState<LoginFormState>({
         username: '',
@@ -29,6 +34,26 @@ export const LoginForm = () => {
     const [showPassword, setShowPassword] = useState(false);
 
     const { formErrors, validateForm, clearFieldError, resetFormErrors } = useLoginFormValidator(isRegistering, formData);
+
+    useEffect(() => {
+        if (loginMutation.data?.kind !== 'pending-login-approval') {
+            return;
+        }
+
+        savePendingLoginApproval({
+            approvalId: loginMutation.data.approvalId,
+            approvalToken: loginMutation.data.approvalToken,
+            approvalMethod: loginMutation.data.approvalMethod,
+            approvalHint: loginMutation.data.approvalHint,
+            expiresAt: loginMutation.data.expiresAt || new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+            redirectPath: currentPath || '/',
+            username: formData.username,
+        });
+
+        navigate(`/login-approval?id=${encodeURIComponent(loginMutation.data.approvalId)}`, {
+            replace: true,
+        });
+    }, [currentPath, formData.username, loginMutation.data, navigate]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -45,7 +70,7 @@ export const LoginForm = () => {
         e.preventDefault();
         if (!validateForm()) return;
 
-        if (isRegistering) {
+        if (isRegistering && canRegister) {
             registerMutation.mutate({
                 username: formData.username,
                 password: formData.password,
@@ -71,8 +96,19 @@ export const LoginForm = () => {
     const rawError = error ||
         (loginMutation.error instanceof Error ? loginMutation.error.message : null) ||
         (registerMutation.error instanceof Error ? registerMutation.error.message : null);
-    
+
     const displayError = rawError ? cleanErrorMessage(rawError) : null;
+
+    // Admin-approved signups: show a dedicated waiting screen instead of
+    // the form once the mutation returns { kind: 'pending-approval' }.
+    // We don't set validated user state so AuthWrapper keeps the dialog up.
+    if (registerMutation.data?.kind === 'pending-approval') {
+        return <PendingApprovalScreen />;
+    }
+
+    if (loginMutation.data?.kind === 'pending-login-approval') {
+        return <LoginApprovalRedirectScreen />;
+    }
 
     return (
         <div className="space-y-6">
@@ -180,14 +216,56 @@ export const LoginForm = () => {
             </form>
 
             {/* Toggle */}
-            <p className="text-center text-sm">
-                <button type="button" onClick={toggleMode} disabled={isLoading} className="text-primary hover:text-primary/80 font-medium disabled:opacity-50">
-                    {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-                </button>
-            </p>
+            {canRegister && (
+                <p className="text-center text-sm">
+                    <button type="button" onClick={toggleMode} disabled={isLoading} className="text-primary hover:text-primary/80 font-medium disabled:opacity-50">
+                        {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+                    </button>
+                </p>
+            )}
         </div>
     );
 };
+
+// Pending approval screen — shown after successful signup when
+// `authOverrides.requireAdminApproval` is enabled on the server.
+// The user account exists in 'pending' status; they cannot log in
+// until an admin approves them via /admin/approvals.
+const PendingApprovalScreen: React.FC = () => (
+    <div className="space-y-6 text-center">
+        <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/25">
+            <Clock className="w-7 h-7 text-primary-foreground" />
+        </div>
+        <div className="space-y-2">
+            <h1 className="text-2xl font-bold text-foreground">
+                Waiting for approval
+            </h1>
+            <p className="text-sm text-muted-foreground">
+                Your account has been created and is pending admin approval.
+                You&apos;ll be notified once it&apos;s activated.
+            </p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+            You can safely close this window.
+        </p>
+    </div>
+);
+
+const LoginApprovalRedirectScreen: React.FC = () => (
+    <div className="space-y-6 text-center">
+        <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/25">
+            <Clock className="w-7 h-7 text-primary-foreground" />
+        </div>
+        <div className="space-y-2">
+            <h1 className="text-2xl font-bold text-foreground">
+                Waiting for sign-in approval
+            </h1>
+            <p className="text-sm text-muted-foreground">
+                Redirecting to the approval page now.
+            </p>
+        </div>
+    </div>
+);
 
 // Simple input field component
 interface InputFieldProps {

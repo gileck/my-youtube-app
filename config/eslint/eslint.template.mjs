@@ -43,6 +43,11 @@ const restrictApiRoutesRule = {
 };
 
 const eslintTemplateConfig = [
+  {
+    // Project-owned SDK/MCP packages ship with their own tsconfig + lint rules
+    // and aren't part of the Next.js app.
+    ignores: ["packages/**"],
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],

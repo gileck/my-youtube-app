@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 /*
  Minimal interactive initializer for this template:
- 1) Copy .env from ../app-template-ai/ (or parent directory) if not exists
- 2) Prompt for project name (default: folder name)
- 3) Update src/app.config.js: appName and dbName
- 4) Create src/config/pwa.config.ts with PWA metadata
- 5) Create a local user in MongoDB: username "local_user_id", password "1234"
- 6) Write LOCAL_USER_ID in .env
- 7) Initialize template tracking (run init-template.ts)
- 8) Delete template example features (Todos, Chat, AIChat, Home)
+  1) Copy .env (and .env.local) from ../app-template-ai/ if not present
+  2) Prompt for project name (default: folder name)
+  3) Update src/app.config.js: appName and dbName
+  4) Create src/config/pwa.config.ts with PWA metadata
+  5) Create a local user in MongoDB: username "local_user_id", password "1234"
+  6) Write LOCAL_USER_ID in .env
+  7) Initialize template tracking (run init-template.ts)
+  8) Delete template example features (Todos, Chat, AIChat, Home)
+  9) Install git hooks + mark yarn.lock skip-worktree (yarn setup-hooks)
+ 10) Prompt for `vercel link`, then optionally push .env/.env.local to
+     Vercel (filtered: LOCAL_* keys excluded, user confirms the key list)
 */
 
 const fs = require('fs');
@@ -90,7 +93,9 @@ async function createLocalUserAndWriteEnv() {
 
     const mongoUri = process.env.MONGO_URI;
     if (!mongoUri) {
-        throw new Error('MONGO_URI is not set. Please set it before running the initializer.');
+        throw new Error(
+            'MONGO_URI is not set. Add it to .env or .env.local in the project root, then re-run `yarn init-project`.'
+        );
     }
 
     const bcrypt = require('bcryptjs');
@@ -157,30 +162,41 @@ async function writeEnvLocalUserId(id) {
     fs.writeFileSync(envPath, envContent, 'utf8');
 }
 
-function ensureEnvFromParentOrEmpty() {
-    const cwdEnvPath = path.resolve(process.cwd(), '.env');
-    if (fs.existsSync(cwdEnvPath)) {
-        console.log('[.env] Already exists, skipping.');
+function copyEnvFileIfMissing(fileName) {
+    const cwdPath = path.resolve(process.cwd(), fileName);
+    if (fs.existsSync(cwdPath)) {
+        console.log(`[${fileName}] Already exists, skipping.`);
         return;
     }
 
-    // Try to copy from ../app-template-ai/.env (the template directory)
-    const templateEnvPath = path.resolve(process.cwd(), '..', 'app-template-ai', '.env');
-    if (fs.existsSync(templateEnvPath)) {
-        fs.copyFileSync(templateEnvPath, cwdEnvPath);
-        console.log('[.env] Copied from ../app-template-ai/');
+    // Try to copy from ../app-template-ai/<fileName> (the template directory)
+    const templatePath = path.resolve(process.cwd(), '..', 'app-template-ai', fileName);
+    if (fs.existsSync(templatePath)) {
+        fs.copyFileSync(templatePath, cwdPath);
+        console.log(`[${fileName}] Copied from ../app-template-ai/`);
         return;
     }
 
     // Fallback: try parent directory
-    const parentEnvPath = path.resolve(process.cwd(), '..', '.env');
-    if (fs.existsSync(parentEnvPath)) {
-        fs.copyFileSync(parentEnvPath, cwdEnvPath);
-        console.log('[.env] Copied from parent directory.');
-    } else {
-        fs.writeFileSync(cwdEnvPath, '', 'utf8');
-        console.log('[.env] Created empty file.');
+    const parentPath = path.resolve(process.cwd(), '..', fileName);
+    if (fs.existsSync(parentPath)) {
+        fs.copyFileSync(parentPath, cwdPath);
+        console.log(`[${fileName}] Copied from parent directory.`);
+        return;
     }
+
+    // Only create an empty .env when no source is found. Never fabricate a .env.local.
+    if (fileName === '.env') {
+        fs.writeFileSync(cwdPath, '', 'utf8');
+        console.log(`[${fileName}] Created empty file.`);
+    } else {
+        console.log(`[${fileName}] No source found, skipping.`);
+    }
+}
+
+function ensureEnvFromParentOrEmpty() {
+    copyEnvFileIfMissing('.env');
+    copyEnvFileIfMissing('.env.local');
 }
 
 function createPwaConfig(projectName, description, themeColor) {
@@ -278,33 +294,57 @@ function createManifest(projectName, description, themeColor) {
     return true;
 }
 
-function getGitRemoteUrl() {
+// Canonical template repo URL (kept in sync with scripts/template/init-template.ts).
+// Used only as a self-recognition signal when init-project is accidentally run
+// inside the template repo itself.
+const TEMPLATE_REPO_URL = 'git@github.com:gileck/app-template-ai.git';
+
+function isTemplateRepoItself() {
     try {
-        return execSync('git remote get-url origin', { encoding: 'utf8', stdio: 'pipe' }).trim();
+        const origin = execSync('git remote get-url origin', {
+            encoding: 'utf8',
+            stdio: 'pipe',
+        }).trim();
+        return origin === TEMPLATE_REPO_URL;
     } catch {
-        return null;
+        return false;
     }
 }
 
 function runInitTemplate() {
-    // Check if .template-sync.json already exists
+    // Check if .template-sync.json already exists and is populated.
+    // An empty `templateRepo` means the config was bootstrapped but never initialized
+    // (e.g. copied from the template repo itself, which keeps it empty).
     const configPath = path.resolve(process.cwd(), '.template-sync.json');
     if (fs.existsSync(configPath)) {
-        console.log('[Template Tracking] Already initialized, skipping.');
-        return true;
+        try {
+            const existing = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (existing.templateRepo) {
+                console.log('[Template Tracking] Already initialized, skipping.');
+                return true;
+            }
+            // Safety: if we ARE the template repo (git origin matches the canonical
+            // template URL), keep templateRepo empty — sync-template relies on that
+            // signal to refuse running against itself.
+            if (isTemplateRepoItself()) {
+                console.log('[Template Tracking] Detected template repo itself, leaving empty templateRepo alone.');
+                return true;
+            }
+            console.log('[Template Tracking] Existing config has empty templateRepo, reinitializing...');
+            fs.rmSync(configPath, { force: true });
+        } catch {
+            console.log('[Template Tracking] Existing config unreadable, reinitializing...');
+            fs.rmSync(configPath, { force: true });
+        }
     }
 
-    // Get template repo URL from git remote origin
-    const remoteUrl = getGitRemoteUrl();
-    if (!remoteUrl) {
-        console.log('[Template Tracking] No git remote origin found, skipping.');
-        return false;
-    }
-
+    // Invoke init-template without a URL — it defaults to the canonical template
+    // (git@github.com:gileck/app-template-ai.git) and sets templateLocalPath to
+    // ../app-template-ai, matching every other child project.
     console.log('[Template Tracking] Initializing...');
     try {
         const initTemplateScript = path.resolve(__dirname, 'init-template.ts');
-        execSync(`npx tsx "${initTemplateScript}" "${remoteUrl}"`, {
+        execSync(`npx tsx "${initTemplateScript}"`, {
             encoding: 'utf8',
             stdio: 'inherit',
             cwd: process.cwd(),
@@ -362,13 +402,41 @@ function deleteTemplateExampleFeatures() {
     console.log(`[Example Features] Removed ${deletedCount} item(s).`);
 }
 
+function runSetupHooks() {
+    // Idempotent: installs pre-commit hook (auto-resets yarn.lock to HEAD) and
+    // marks yarn.lock as skip-worktree so local installs against a private
+    // registry (e.g. npm.dev.wixpress.com) never contaminate commits — which
+    // would otherwise break Vercel builds that can only reach public npm.
+    const hooksScript = path.resolve(__dirname, 'hooks', 'setup-hooks.sh');
+    if (!fs.existsSync(hooksScript)) {
+        console.log('[setup-hooks] Script not found, skipping.');
+        return;
+    }
+    console.log('[setup-hooks] Installing git hooks and yarn.lock protection...');
+    try {
+        execSync(`bash "${hooksScript}"`, {
+            encoding: 'utf8',
+            stdio: 'inherit',
+            cwd: process.cwd(),
+        });
+    } catch (err) {
+        console.log('[setup-hooks] Warning: Failed:', err.message || err);
+    }
+}
+
 async function main() {
     console.log('=== Project Initialization ===\n');
 
     // Step 1: Ensure .env exists (copy from parent if needed)
     ensureEnvFromParentOrEmpty();
 
-    // Now load dotenv so MONGO_URI is available for DB operations
+    // Now load dotenv so MONGO_URI is available for DB operations.
+    // Follow Next.js precedence: .env.local overrides .env. Load .env.local first so
+    // its values take priority (dotenv does not overwrite existing env vars by default).
+    const envLocalPath = path.resolve(process.cwd(), '.env.local');
+    if (fs.existsSync(envLocalPath)) {
+        require('dotenv').config({ path: envLocalPath });
+    }
     require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
 
     // Step 2-4: Project config, PWA config, manifest
@@ -403,10 +471,16 @@ async function main() {
     // Step 8: Delete template example features (Todos, Chat, AIChat, Home)
     deleteTemplateExampleFeatures();
 
+    // Step 9: Install git hooks + protect yarn.lock from wixpress URL contamination
+    runSetupHooks();
+
     console.log('\n=== Initialization complete ===');
 
-    // Step 9: Prompt for Vercel linking
-    await promptVercelLink();
+    // Step 10: Prompt for Vercel linking, then optionally push env vars.
+    const linked = await promptVercelLink();
+    if (linked) {
+        await promptVercelEnvPush();
+    }
 }
 
 async function promptVercelLink() {
@@ -421,7 +495,7 @@ async function promptVercelLink() {
         } catch {
             // Ignore parse errors
         }
-        return;
+        return true;
     }
 
     console.log('\n⚠️  IMPORTANT: Link to Vercel Project');
@@ -444,13 +518,110 @@ async function promptVercelLink() {
         try {
             execSync('vercel link', { stdio: 'inherit', cwd: process.cwd() });
             console.log('\n✅ Vercel project linked successfully!');
+            return fs.existsSync(vercelConfigPath);
         } catch (err) {
             console.log('\n⚠️  Vercel link failed or was cancelled.');
             console.log('You can run it later with: vercel link');
+            return false;
         }
     } else {
         console.log('\n📋 Skipped. Run later with: vercel link');
         console.log('   ⚠️  Remember to link before using vercel-cli commands!');
+        return false;
+    }
+}
+
+// Keys that are local-dev-only and should never be pushed to Vercel.
+// Everything matching LOCAL_* is excluded; add explicit names here for edge
+// cases that don't follow the LOCAL_ prefix convention.
+const VERCEL_ENV_EXCLUDE_EXACT = new Set([
+    'IGNORE_LOCAL_USER_ID',
+]);
+
+function isLocalOnlyEnvKey(key) {
+    if (key.startsWith('LOCAL_')) return true;
+    return VERCEL_ENV_EXCLUDE_EXACT.has(key);
+}
+
+function parseDotenvFile(filePath) {
+    const out = {};
+    if (!fs.existsSync(filePath)) return out;
+    const content = fs.readFileSync(filePath, 'utf8');
+    for (const line of content.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const eq = trimmed.indexOf('=');
+        if (eq === -1) continue;
+        const key = trimmed.slice(0, eq).trim();
+        let value = trimmed.slice(eq + 1).trim();
+        if ((value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1);
+        }
+        if (key) out[key] = value;
+    }
+    return out;
+}
+
+async function promptVercelEnvPush() {
+    // Merge .env (template defaults) and .env.local (secrets); .env.local wins,
+    // matching Next.js precedence. Then drop LOCAL_* keys so laptop-specific
+    // values never reach preview/production.
+    const envBase = parseDotenvFile(path.resolve(process.cwd(), '.env'));
+    const envLocal = parseDotenvFile(path.resolve(process.cwd(), '.env.local'));
+    const merged = { ...envBase, ...envLocal };
+
+    const pushable = Object.entries(merged)
+        .filter(([key, value]) => !isLocalOnlyEnvKey(key) && value.length > 0)
+        .map(([key]) => key)
+        .sort();
+    const excluded = Object.keys(merged).filter((k) => isLocalOnlyEnvKey(k)).sort();
+
+    console.log('\n📤 Vercel Environment Variables');
+    console.log('═'.repeat(50));
+
+    if (pushable.length === 0) {
+        console.log('\nNo env vars to push (empty or only LOCAL_* keys).');
+        console.log('Run later with: yarn vercel-cli env:push');
+        return;
+    }
+
+    console.log(`\nThese ${pushable.length} variable(s) will be pushed to Vercel (preview + production):\n`);
+    for (const key of pushable) console.log(`  • ${key}`);
+
+    if (excluded.length > 0) {
+        console.log(`\nSkipped (${excluded.length}, local-only): ${excluded.join(', ')}`);
+    }
+
+    console.log('\n⚠️  Review the list above — values won\'t be shown but keys will go to Vercel.');
+    console.log('   Anything pointing to a dev-only resource (e.g. local MongoDB) should be removed from .env.local first.');
+
+    const answer = await prompt('\nPush these to Vercel now?', 'N');
+    const confirmed = answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
+    if (!confirmed) {
+        console.log('\n📋 Skipped. Run later with: yarn vercel-cli env:push');
+        return;
+    }
+
+    // Write the filtered set to a tempfile so vercel-cli env:push only sees the
+    // keys the user confirmed. Using os.tmpdir to avoid committing anything.
+    const os = require('os');
+    const tmpFile = path.join(os.tmpdir(), `init-project-env-${process.pid}.env`);
+    const tmpContent = pushable.map((k) => `${k}=${merged[k]}`).join('\n') + '\n';
+    fs.writeFileSync(tmpFile, tmpContent, { encoding: 'utf8', mode: 0o600 });
+
+    try {
+        console.log('\nRunning: yarn vercel-cli env:push --target preview,production --overwrite\n');
+        execSync(
+            `yarn vercel-cli env:push --file "${tmpFile}" --target preview,production --overwrite`,
+            { stdio: 'inherit', cwd: process.cwd() }
+        );
+        console.log('\n✅ Env vars pushed to Vercel.');
+    } catch (err) {
+        console.log('\n⚠️  Env push failed:', err.message || err);
+        console.log('   You can retry with: yarn vercel-cli env:push');
+    } finally {
+        try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
     }
 }
 
