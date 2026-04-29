@@ -57,6 +57,7 @@ const TabsList = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
     ({ className, ...props }, ref) => (
         <div
             ref={ref}
+            role="tablist"
             className={cn(
                 'inline-flex h-11 items-center rounded-2xl border border-border bg-muted/40 p-1',
                 className
@@ -78,6 +79,8 @@ const TabsTrigger = React.forwardRef<
         <button
             ref={ref}
             type="button"
+            role="tab"
+            aria-selected={isActive}
             data-state={isActive ? 'active' : 'inactive'}
             className={cn(
                 'inline-flex h-9 items-center justify-center rounded-xl px-4 text-sm font-medium text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm',
@@ -97,15 +100,26 @@ TabsTrigger.displayName = 'TabsTrigger';
 
 const TabsContent = React.forwardRef<
     HTMLDivElement,
-    React.HTMLAttributes<HTMLDivElement> & { value: string }
->(({ className, value, ...props }, ref) => {
+    React.HTMLAttributes<HTMLDivElement> & { value: string; forceMount?: boolean }
+>(({ className, value, forceMount, ...props }, ref) => {
     const context = useTabsContext();
+    const isActive = context.value === value;
 
-    if (context.value !== value) {
+    if (!isActive && !forceMount) {
         return null;
     }
 
-    return <div ref={ref} className={cn('outline-none', className)} {...props} />;
+    return (
+        <div
+            ref={ref}
+            role="tabpanel"
+            data-state={isActive ? 'active' : 'inactive'}
+            hidden={!isActive}
+            tabIndex={isActive ? 0 : -1}
+            className={cn('outline-none', className)}
+            {...props}
+        />
+    );
 });
 TabsContent.displayName = 'TabsContent';
 

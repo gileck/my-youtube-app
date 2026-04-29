@@ -5,6 +5,7 @@ import { useQueryDefaults } from '@/client/query/defaults';
 import { recordApiCall, recordApiError } from '@/client/features/project/cache-stats';
 import { useVideoUIToggle } from '@/client/features/project/video-ui-state';
 import { useSettingsStore } from '@/client/features/template/settings';
+import { useAIOptionsStore } from '@/client/features/project/ai-options';
 import type { AIActionType, AIOptions, GetVideoDetailsResponse, GetTranscriptResponse, GetVideoSummaryResponse, TranscriptSegment, ChapterWithContent } from '@/apis/project/youtube/types';
 
 const TIMESTAMP_INTERVAL_SECONDS = 10;
@@ -100,9 +101,9 @@ function buildChapterTranscript(
 }
 
 function useAIOptions(): AIOptions {
-    const length = useSettingsStore((s) => s.settings.aiLength);
-    const level = useSettingsStore((s) => s.settings.aiLevel);
-    const style = useSettingsStore((s) => s.settings.aiStyle);
+    const length = useAIOptionsStore((s) => s.options.aiLength);
+    const level = useAIOptionsStore((s) => s.options.aiLevel);
+    const style = useAIOptionsStore((s) => s.options.aiStyle);
     return useMemo(() => ({ length, level, style }), [length, level, style]);
 }
 

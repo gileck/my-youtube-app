@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import type { AILength, AILevel, AIStyle } from '@/apis/project/youtube/types';
 import { getModelsByTier } from '@/common/ai/models';
 import { useSettingsStore, useIsAdmin } from '@/client/features';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/client/components/template/ui/tabs';
+import { useAIOptionsStore } from '@/client/features/project/ai-options';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/client/components/project/tabs';
 import { useAddToHistory } from '@/client/features/project/history';
 import { useVideoUIStateStore } from '@/client/features/project/video-ui-state';
 import { useVideoDetails, useTranscript, useVideoExplain, useVideoDeepExplain } from './hooks';
@@ -109,9 +110,9 @@ function OptionRow({ label, value, options, onChange }: { label: string; value: 
 }
 
 function AIOptionsButton({ onGenerate }: { onGenerate: () => void }) {
-    const settings = useSettingsStore((s) => s.settings);
-    const update = useSettingsStore((s) => s.updateSettings);
-    const isDefault = settings.aiLength === 'medium' && settings.aiLevel === 'intermediate' && settings.aiStyle === 'conversational';
+    const options = useAIOptionsStore((s) => s.options);
+    const update = useAIOptionsStore((s) => s.updateOptions);
+    const isDefault = options.aiLength === 'medium' && options.aiLevel === 'intermediate' && options.aiStyle === 'conversational';
 
     return (
         <Dialog>
@@ -126,9 +127,9 @@ function AIOptionsButton({ onGenerate }: { onGenerate: () => void }) {
                     <DialogTitle className="text-base">AI Options</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 pt-2">
-                    <OptionRow label="Length" value={settings.aiLength} options={LENGTH_OPTIONS} onChange={(v) => update({ aiLength: v as AILength })} />
-                    <OptionRow label="Level" value={settings.aiLevel} options={LEVEL_OPTIONS} onChange={(v) => update({ aiLevel: v as AILevel })} />
-                    <OptionRow label="Style" value={settings.aiStyle} options={STYLE_OPTIONS} onChange={(v) => update({ aiStyle: v as AIStyle })} />
+                    <OptionRow label="Length" value={options.aiLength} options={LENGTH_OPTIONS} onChange={(v) => update({ aiLength: v as AILength })} />
+                    <OptionRow label="Level" value={options.aiLevel} options={LEVEL_OPTIONS} onChange={(v) => update({ aiLevel: v as AILevel })} />
+                    <OptionRow label="Style" value={options.aiStyle} options={STYLE_OPTIONS} onChange={(v) => update({ aiStyle: v as AIStyle })} />
                     <DialogTrigger asChild>
                         <Button className="w-full" onClick={onGenerate}>
                             Generate
@@ -165,8 +166,8 @@ function AIActionHeader({ actionType, videoId, cost, isFromCache, isLoading, onR
 }
 
 function EmptyAITab({ label, onGenerate }: { label: string; onGenerate: () => void }) {
-    const settings = useSettingsStore((s) => s.settings);
-    const update = useSettingsStore((s) => s.updateSettings);
+    const options = useAIOptionsStore((s) => s.options);
+    const update = useAIOptionsStore((s) => s.updateOptions);
 
     return (
         <Dialog>
@@ -183,9 +184,9 @@ function EmptyAITab({ label, onGenerate }: { label: string; onGenerate: () => vo
                     <DialogTitle className="text-base">AI Options</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 pt-2">
-                    <OptionRow label="Length" value={settings.aiLength} options={LENGTH_OPTIONS} onChange={(v) => update({ aiLength: v as AILength })} />
-                    <OptionRow label="Level" value={settings.aiLevel} options={LEVEL_OPTIONS} onChange={(v) => update({ aiLevel: v as AILevel })} />
-                    <OptionRow label="Style" value={settings.aiStyle} options={STYLE_OPTIONS} onChange={(v) => update({ aiStyle: v as AIStyle })} />
+                    <OptionRow label="Length" value={options.aiLength} options={LENGTH_OPTIONS} onChange={(v) => update({ aiLength: v as AILength })} />
+                    <OptionRow label="Level" value={options.aiLevel} options={LEVEL_OPTIONS} onChange={(v) => update({ aiLevel: v as AILevel })} />
+                    <OptionRow label="Style" value={options.aiStyle} options={STYLE_OPTIONS} onChange={(v) => update({ aiStyle: v as AIStyle })} />
                     <DialogTrigger asChild>
                         <Button className="w-full" onClick={onGenerate}>
                             Generate {label}
@@ -288,7 +289,7 @@ export const Video = () => {
                             </TabsList>
 
                             {hasTranscript && (
-                                <TabsContent value="ai" forceMount className={activeTab !== 'ai' ? 'hidden' : ''}>
+                                <TabsContent value="ai" forceMount>
                                     <Tabs
                                         value={activeAITab}
                                         onValueChange={(tab) => setActiveTab(videoId + ':ai', tab)}
@@ -304,7 +305,7 @@ export const Video = () => {
                                             </TabsTrigger>
                                         </TabsList>
 
-                                        <TabsContent value="explain" forceMount className={activeAITab !== 'explain' ? 'hidden' : ''}>
+                                        <TabsContent value="explain" forceMount>
                                             {explainEnabled ? (
                                                 <>
                                                 <AIActionHeader actionType="explain" videoId={videoId} cost={explainData?.cost} isFromCache={explainData?._isFromCache} isLoading={explainLoading} onRegenerate={explainRegenerate} onGenerate={explainGenerate} />
@@ -325,7 +326,7 @@ export const Video = () => {
                                             )}
                                         </TabsContent>
 
-                                        <TabsContent value="deep-explain" forceMount className={activeAITab !== 'deep-explain' ? 'hidden' : ''}>
+                                        <TabsContent value="deep-explain" forceMount>
                                             {deepExplainEnabled ? (
                                                 <>
                                                 <AIActionHeader actionType="deep-explain" videoId={videoId} cost={deepExplainData?.cost} isFromCache={deepExplainData?._isFromCache} isLoading={deepExplainLoading} onRegenerate={deepExplainRegenerate} onGenerate={deepExplainGenerate} />
@@ -349,7 +350,7 @@ export const Video = () => {
                             )}
 
                             {hasTranscript && (
-                                <TabsContent value="transcript" forceMount className={activeTab !== 'transcript' ? 'hidden' : ''}>
+                                <TabsContent value="transcript" forceMount>
                                     <div className="rounded-lg border border-border p-3">
                                         <TranscriptSection segments={transcript.transcript} onRefresh={refreshTranscript} />
                                     </div>
@@ -357,7 +358,7 @@ export const Video = () => {
                             )}
 
                             {hasChapters && (
-                                <TabsContent value="chapters" forceMount className={activeTab !== 'chapters' ? 'hidden' : ''}>
+                                <TabsContent value="chapters" forceMount>
                                     <div className="rounded-lg border border-border p-3">
                                         <ChaptersSection chapters={transcript.chapters} videoId={videoId} onRefresh={refreshTranscript} />
                                     </div>

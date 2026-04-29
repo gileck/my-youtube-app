@@ -4,8 +4,5 @@
   "templateLocalPath": "/Users/gileck/Projects/app-template-ai",
   "lastSyncCommit": "d50eb40fffa6735af96dbebfaeac2fa43795d17b",
   "lastSyncDate": "2026-04-29T09:30:13.785Z",
-  "projectOverrides": [
-    "src/client/features/template/settings/types.ts",
-    "src/client/components/template/ui/tabs.tsx"
-  ]
+  "projectOverrides": []
 }
