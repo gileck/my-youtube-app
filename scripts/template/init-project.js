@@ -2,15 +2,16 @@
 /*
  Minimal interactive initializer for this template:
   1) Copy .env (and .env.local) from ../app-template-ai/ if not present
-  2) Prompt for project name (default: folder name)
-  3) Update src/app.config.js: appName and dbName
-  4) Create src/config/pwa.config.ts with PWA metadata
-  5) Create a local user in MongoDB: username "local_user_id", password "1234"
-  6) Write LOCAL_USER_ID in .env
-  7) Initialize template tracking (run init-template.ts)
-  8) Delete template example features (Todos, Chat, AIChat, Home)
-  9) Install git hooks + mark yarn.lock skip-worktree (yarn setup-hooks)
- 10) Prompt for `vercel link`, then optionally push .env/.env.local to
+  2) Initialize template tracking (run init-template.ts) — done first so
+     `.template-sync.json` exists for per-step `init.*` flags
+  3) Prompt for project name + description + theme color, then update
+     src/app.config.js, src/config/pwa.config.ts, and public/manifest.json
+     (skipped if `init.appConfig` flag is set in `.template-sync.json`)
+  4) Create a local user in MongoDB: username "local_user_id", password "1234"
+  5) Write LOCAL_USER_ID in .env
+  6) Delete template example features (Todos, Chat, AIChat, Home)
+  7) Install git hooks + mark yarn.lock skip-worktree (yarn setup-hooks)
+  8) Prompt for `vercel link`, then optionally push .env/.env.local to
      Vercel (filtered: LOCAL_* keys excluded, user confirms the key list)
 */
 
@@ -41,11 +42,25 @@ function toDbName(projectName) {
     return `${slug}_db`;
 }
 
-// Default template values - used to detect if config has been customized
-const TEMPLATE_DEFAULTS = {
-    appName: 'App Template',
-    dbName: 'app_template_db',
-};
+// npm `name` must be lowercase with no spaces; hyphens are the convention.
+function toPackageName(projectName) {
+    return projectName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'app';
+}
+
+// Template default appName as shipped in src/app.config.js. Kept ONLY as a
+// legacy migration signal: projects that completed init before the
+// per-step `init` flag was introduced have customized appName but no flag,
+// so we detect them by inequality with this value and persist the flag.
+// Any new logic should use isProjectConfigured() / setInitFlag('appConfig').
+const TEMPLATE_DEFAULT_APP_NAME = 'App Template AI';
+
+// package.json "name" as shipped by the template. Used as the idempotency
+// signal: we only rewrite the name while it still equals this, so a project
+// that already customized it (or a manual edit) is never clobbered.
+const TEMPLATE_DEFAULT_PACKAGE_NAME = 'app-template-ai';
 
 function getAppConfigValues() {
     const configPath = path.resolve(__dirname, '..', '..', 'src', 'app.config.js');
@@ -58,9 +73,51 @@ function getAppConfigValues() {
     };
 }
 
-function isAppConfigCustomized() {
+// --- Init-step flags --------------------------------------------------------
+// init-project's idempotency lives on `.template-sync.json` under `init.<step>`.
+// The previous implementation inferred state by string-matching artifact
+// contents (e.g. appName vs hardcoded constant), which silently broke when
+// the constant drifted out of sync with src/app.config.js. Flags can't drift.
+
+function readTemplateSyncConfig() {
+    const configPath = path.resolve(process.cwd(), '.template-sync.json');
+    if (!fs.existsSync(configPath)) return null;
+    try {
+        return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    } catch {
+        return null;
+    }
+}
+
+function writeTemplateSyncConfig(config) {
+    const configPath = path.resolve(process.cwd(), '.template-sync.json');
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf8');
+}
+
+function getInitFlag(name) {
+    const cfg = readTemplateSyncConfig();
+    return Boolean(cfg && cfg.init && cfg.init[name]);
+}
+
+function setInitFlag(name) {
+    // Requires .template-sync.json to exist — runInitTemplate() must have run.
+    const cfg = readTemplateSyncConfig();
+    if (!cfg) return;
+    cfg.init = { ...(cfg.init || {}), [name]: true };
+    writeTemplateSyncConfig(cfg);
+}
+
+function isProjectConfigured() {
+    if (getInitFlag('appConfig')) return true;
+    // Legacy migration: projects initialized before the flag existed have a
+    // customized appName but no flag. Detect by comparing against the template
+    // default and persist the flag so we never need this branch again.
     const values = getAppConfigValues();
-    return values.appName && values.appName !== TEMPLATE_DEFAULTS.appName;
+    if (values.appName && values.appName !== TEMPLATE_DEFAULT_APP_NAME) {
+        setInitFlag('appConfig');
+        return true;
+    }
+    return false;
 }
 
 function updateAppConfig(projectName, dbName) {
@@ -80,6 +137,27 @@ function updateAppConfig(projectName, dbName) {
     return false;
 }
 
+function updatePackageName(packageName) {
+    const pkgPath = path.resolve(__dirname, '..', '..', 'package.json');
+    let pkg;
+    try {
+        pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    } catch (err) {
+        console.log('[package.json] Could not read/parse, skipping name update:', err.message || err);
+        return false;
+    }
+    // Only rename while still the template default so a manually-set name is
+    // never clobbered (and re-running init is idempotent).
+    if (pkg.name !== TEMPLATE_DEFAULT_PACKAGE_NAME) {
+        console.log(`[package.json] name already set ("${pkg.name}"), skipping.`);
+        return false;
+    }
+    pkg.name = packageName;
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+    console.log(`[package.json] Updated name to "${packageName}".`);
+    return true;
+}
+
 async function createLocalUserAndWriteEnv() {
     // Check if LOCAL_USER_ID already set in .env
     if (process.env.LOCAL_USER_ID) {
@@ -87,63 +165,19 @@ async function createLocalUserAndWriteEnv() {
         return process.env.LOCAL_USER_ID;
     }
 
-    // Dynamically import ESM TypeScript via ts-node/register is overkill; use direct JS requires from compiled runtime.
-    // The server DB utilities are TypeScript with path alias. We'll reimplement a minimal insert using mongodb driver here to avoid TS runtime.
-    const mongodb = require('mongodb');
-
-    const mongoUri = process.env.MONGO_URI;
-    if (!mongoUri) {
+    if (!process.env.MONGO_URI) {
         throw new Error(
             'MONGO_URI is not set. Add it to .env or .env.local in the project root, then re-run `yarn init-project`.'
         );
     }
 
-    const bcrypt = require('bcryptjs');
-
-    // SALT_ROUNDS from src/apis/auth/server.ts is 10; duplicate here to avoid TS import complexity
-    const SALT_ROUNDS = 10;
-
-    const client = new mongodb.MongoClient(mongoUri);
-    try {
-        await client.connect();
-
-        // Read dbName from app.config.js without executing arbitrary code: parse by regexp
-        const configPath = path.resolve(__dirname, '..', '..', 'src', 'app.config.js');
-        const cfg = fs.readFileSync(configPath, 'utf8');
-        const dbMatch = cfg.match(/dbName:\s*['\"]([^'\"]+)['\"]/);
-        if (!dbMatch) throw new Error('Failed to read dbName from app.config.js');
-        const dbName = dbMatch[1];
-
-        const db = client.db(dbName);
-        const users = db.collection('users');
-
-        const passwordHash = await bcrypt.hash('1234', SALT_ROUNDS);
-        const now = new Date();
-
-        // Ensure username unique; if exists, reuse its _id.
-        const existing = await users.findOne({ username: 'local_user_id' });
-        let userId;
-        let isNew = false;
-        if (existing) {
-            userId = existing._id;
-        } else {
-            const result = await users.insertOne({
-                username: 'local_user_id',
-                password_hash: passwordHash,
-                createdAt: now,
-                updatedAt: now,
-            });
-            if (!result.insertedId) throw new Error('Failed to insert local user');
-            userId = result.insertedId;
-            isNew = true;
-        }
-
-        await writeEnvLocalUserId(userId.toString());
-        console.log(`[Local User] ${isNew ? 'Created new user' : 'Found existing user'}, LOCAL_USER_ID=${userId}`);
-        return userId.toString();
-    } finally {
-        await client.close().catch(() => { });
-    }
+    // Delegate to the canonical `create-user` script — it reuses the
+    // app's real `users.insertUser` + `SALT_ROUNDS` + approval logic
+    // (so the seeded user always matches the current schema), is
+    // idempotent, and writes LOCAL_USER_ID to .env. This replaces the
+    // old hand-rolled raw insert that drifted from the user schema.
+    execSync('yarn create-local-user', { stdio: 'inherit', cwd: process.cwd() });
+    return process.env.LOCAL_USER_ID;
 }
 
 async function writeEnvLocalUserId(id) {
@@ -162,6 +196,33 @@ async function writeEnvLocalUserId(id) {
     fs.writeFileSync(envPath, envContent, 'utf8');
 }
 
+// Per-developer identity vars that must NEVER carry over from the template's
+// local env files into a freshly created project. Copying .env/.env.local from
+// ../app-template-ai bootstraps shared values (e.g. MONGO_URI), but it would
+// otherwise leak the template developer's own ids: LOCAL_USER_ID points at a
+// user in the template's database (not the new project's), and ADMIN_USER_ID
+// would make the template dev the new project's admin. init-project regenerates
+// LOCAL_USER_ID for the new project's own database in createLocalUserAndWriteEnv().
+const LEAKY_IDENTITY_KEYS = ['LOCAL_USER_ID', 'ADMIN_USER_ID'];
+
+function stripLeakyIdentityKeys(filePath, fileName) {
+    let content = fs.readFileSync(filePath, 'utf8');
+    let changed = false;
+    for (const key of LEAKY_IDENTITY_KEYS) {
+        // Match active OR commented assignments (whole line), with optional
+        // leading "#"/whitespace and optional "export ".
+        const re = new RegExp(`^[ \\t]*#?[ \\t]*(?:export[ \\t]+)?${key}=.*$\\n?`, 'gm');
+        if (re.test(content)) {
+            content = content.replace(re, '');
+            changed = true;
+        }
+    }
+    if (changed) {
+        fs.writeFileSync(filePath, content, 'utf8');
+        console.log(`[${fileName}] Stripped template identity keys (${LEAKY_IDENTITY_KEYS.join(', ')}).`);
+    }
+}
+
 function copyEnvFileIfMissing(fileName) {
     const cwdPath = path.resolve(process.cwd(), fileName);
     if (fs.existsSync(cwdPath)) {
@@ -174,6 +235,7 @@ function copyEnvFileIfMissing(fileName) {
     if (fs.existsSync(templatePath)) {
         fs.copyFileSync(templatePath, cwdPath);
         console.log(`[${fileName}] Copied from ../app-template-ai/`);
+        stripLeakyIdentityKeys(cwdPath, fileName);
         return;
     }
 
@@ -182,6 +244,7 @@ function copyEnvFileIfMissing(fileName) {
     if (fs.existsSync(parentPath)) {
         fs.copyFileSync(parentPath, cwdPath);
         console.log(`[${fileName}] Copied from parent directory.`);
+        stripLeakyIdentityKeys(cwdPath, fileName);
         return;
     }
 
@@ -199,12 +262,11 @@ function ensureEnvFromParentOrEmpty() {
     copyEnvFileIfMissing('.env.local');
 }
 
-function createPwaConfig(projectName, description, themeColor) {
+function createPwaConfig(projectName, description, themeColor, { force = false } = {}) {
     const configDir = path.resolve(__dirname, '..', '..', 'src', 'config');
     const configPath = path.join(configDir, 'pwa.config.ts');
 
-    // Check if already exists
-    if (fs.existsSync(configPath)) {
+    if (!force && fs.existsSync(configPath)) {
         console.log('[pwa.config.ts] Already exists, skipping.');
         return false;
     }
@@ -248,21 +310,12 @@ export const pwaConfig = {
     return true;
 }
 
-function createManifest(projectName, description, themeColor) {
+function createManifest(projectName, description, themeColor, { force = false } = {}) {
     const manifestPath = path.resolve(__dirname, '..', '..', 'public', 'manifest.json');
 
-    // Check if manifest exists and has been customized (name != template default)
-    if (fs.existsSync(manifestPath)) {
-        try {
-            const existing = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-            // If name is not the template default, consider it already customized
-            if (existing.name && existing.name !== 'App Template') {
-                console.log('[manifest.json] Already customized, skipping.');
-                return false;
-            }
-        } catch {
-            // If we can't parse it, we'll overwrite it
-        }
+    if (!force && fs.existsSync(manifestPath)) {
+        console.log('[manifest.json] Already exists, skipping.');
+        return false;
     }
 
     const manifest = {
@@ -439,34 +492,41 @@ async function main() {
     }
     require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
 
-    // Step 2-4: Project config, PWA config, manifest
-    // Skip interactive prompts if already customized
-    if (isAppConfigCustomized()) {
+    // Step 2: Initialize template tracking FIRST so `.template-sync.json` exists
+    // as the storage for per-step `init.*` flags before we set them.
+    runInitTemplate();
+
+    // Step 3-5: Project config, PWA config, manifest. Skip if `init.appConfig`
+    // is already set (or detected via legacy customization migration).
+    if (isProjectConfigured()) {
         const values = getAppConfigValues();
-        console.log(`[app.config.js] Already customized (appName: "${values.appName}"), skipping prompts.`);
-        // Still try to create PWA config and manifest if missing (use existing values)
+        console.log(`[app.config.js] Already configured (appName: "${values.appName}"), skipping prompts.`);
+        // Recovery: create pwa.config.ts / manifest.json if missing, but never
+        // overwrite — they may hold the user's earlier prompt answers.
         createPwaConfig(values.appName, 'A custom SPA application with PWA capabilities', '#000000');
         createManifest(values.appName, 'A custom SPA application with PWA capabilities', '#000000');
+        if (values.appName) updatePackageName(toPackageName(values.appName));
     } else {
         const defaultName = getDefaultProjectName();
         const projectName = await prompt('Project Name', defaultName);
         const dbName = toDbName(projectName);
 
         updateAppConfig(projectName, dbName);
+        updatePackageName(toPackageName(projectName));
 
         // PWA configuration
         const pwaDescription = await prompt('App Description', 'A custom SPA application with PWA capabilities');
         const pwaThemeColor = await prompt('Theme Color (hex)', '#000000');
 
-        createPwaConfig(projectName, pwaDescription, pwaThemeColor);
-        createManifest(projectName, pwaDescription, pwaThemeColor);
+        // force: prompts ran with fresh user input; existing files are stale defaults.
+        createPwaConfig(projectName, pwaDescription, pwaThemeColor, { force: true });
+        createManifest(projectName, pwaDescription, pwaThemeColor, { force: true });
+
+        setInitFlag('appConfig');
     }
 
-    // Step 5-6: Create local user and write LOCAL_USER_ID to .env
+    // Step 6-7: Create local user and write LOCAL_USER_ID to .env
     await createLocalUserAndWriteEnv();
-
-    // Step 7: Initialize template tracking
-    runInitTemplate();
 
     // Step 8: Delete template example features (Todos, Chat, AIChat, Home)
     deleteTemplateExampleFeatures();

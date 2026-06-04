@@ -13,13 +13,16 @@ import {
     COOKIE_OPTIONS,
     JWT_EXPIRES_IN,
     getJwtSecret,
+    isAdminUser,
     SALT_ROUNDS,
     sanitizeUser,
 } from "../shared";
 import { toStringId } from '@/server/template/utils';
 import { authOverrides } from '@/apis/auth-overrides';
+import { isPasskeyMode } from '../authMode';
 import { sendNotificationToOwner } from '@/server/template/telegram';
-import { appConfig } from '@/app.config';
+import { getAppUrl } from '@/server/template/appUrl';
+import { recordSession } from '@/server/template/sessions/recordSession';
 
 // Register endpoint
 export const registerUser = async (
@@ -27,6 +30,12 @@ export const registerUser = async (
     context: ApiHandlerContext
 ): Promise<RegisterResponse> => {
     try {
+        // Phase 6: password sign-up is retired in passkey mode. New users are
+        // onboarded via a passkey enrollment link (admin-generated, or email).
+        if (isPasskeyMode()) {
+            return { error: 'Sign-ups use passkeys here. Ask an admin for an enrollment link.' };
+        }
+
         // Validate input
         if (!request.username || !request.password) {
             return { error: "Username and password are required" };
@@ -98,7 +107,7 @@ export const registerUser = async (
 
         const newUser = await users.insertUser(userData);
         const userId = toStringId(newUser._id);
-        const isAdmin = !!process.env.ADMIN_USER_ID && userId === process.env.ADMIN_USER_ID;
+        const isAdmin = isAdminUser(userId);
 
         // Pending approval branch: no cookie, no user in response.
         // Skip for: admin (ADMIN_USER_ID bypass) and bootstrap first-user.
@@ -143,6 +152,8 @@ export const registerUser = async (
         // Set auth cookie
         context.setCookie(COOKIE_NAME, token, COOKIE_OPTIONS);
 
+        recordSession(userId, 'register');
+
         return { user: { ...sanitizeUser(finalUser), isAdmin } };
     } catch (error: unknown) {
         console.error("Registration error:", error);
@@ -154,28 +165,32 @@ export const registerUser = async (
  * Send a Telegram notification to the owner about a new pending signup.
  * Renders an inline keyboard button that opens the admin approvals page.
  *
- * Uses the canonical `appConfig.appUrl` so the URL resolution matches
- * the rest of the app's Telegram links (NEXT_PUBLIC_APP_URL override →
- * VERCEL_PROJECT_PRODUCTION_URL → VERCEL_URL → production fallback).
+ * Uses the canonical `getAppUrl()` (the single `NEXT_PUBLIC_APP_URL` source).
+ * Best-effort: if the prod URL is unset the owner is still notified, just
+ * without the deep-link button.
  */
 async function notifyOwnerOfPendingSignup(
     username: string,
     email: string | undefined
 ): Promise<void> {
     try {
-        const approvalsLink = `${appConfig.appUrl.replace(/\/$/, '')}/admin/approvals`;
+        // Best-effort: if the prod URL isn't configured, still notify the owner
+        // (without the deep-link button) rather than dropping the notification.
+        const appUrl = getAppUrl();
+        const approvalsLink = appUrl ? `${appUrl}/admin/approvals` : null;
 
         const message = [
             '🆕 New signup pending approval',
             '',
             `Username: ${username}`,
             email ? `Email: ${email}` : 'Email: (not provided)',
+            ...(approvalsLink ? [] : ['', 'Open /admin/approvals to review.']),
         ].join('\n');
 
         await sendNotificationToOwner(message, {
-            inlineKeyboard: [
-                [{ text: '🔍 Review & Approve', url: approvalsLink }],
-            ],
+            inlineKeyboard: approvalsLink
+                ? [[{ text: '🔍 Review & Approve', url: approvalsLink }]]
+                : undefined,
         });
     } catch (error) {
         console.error('[registerUser] Failed to notify owner of pending signup:', error);

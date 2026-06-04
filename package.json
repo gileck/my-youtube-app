@@ -69,7 +69,12 @@
     "init:mcp": "tsx scripts/template/init-mcp.ts",
     "generate-vapid": "tsx scripts/template/generate-vapid.ts",
     "test-push": "tsx scripts/template/test-push.ts",
-    "daemon:dev": "tsx --watch src/server/template/rpc/daemon.ts --verbose"
+    "daemon:dev": "tsx --watch src/server/template/rpc/daemon.ts --verbose",
+    "create-user": "tsx scripts/template/create-user.ts",
+    "create-local-user": "tsx scripts/template/create-user.ts --local",
+    "set-app-url": "tsx scripts/template/set-app-url.ts",
+    "create-project": "bash scripts/template/create-project-from-template.sh",
+    "test-codex-sdk": "tsx scripts/template/test-codex-sdk.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.76",
@@ -120,7 +125,11 @@
     "tiktoken": "^1.0.20",
     "youtubei.js": "^16.0.1",
     "zustand": "^5.0.8",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "@openai/codex-sdk": "0.134.0",
+    "@simplewebauthn/browser": "^13",
+    "@simplewebauthn/server": "^13",
+    "zod": "^4.0.0"
   },
   "resolutions": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",
