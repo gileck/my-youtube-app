@@ -74,7 +74,7 @@ For **fire-and-forget** patterns (long-running daemon jobs whose progress is tra
 
 Standalone process that runs on a local machine. Start with `yarn daemon` or `yarn daemon --verbose`.
 
-- Loads env vars via `src/agents/shared/loadEnv`
+- Loads env vars via `src/server/template/loadEnv`
 - Ensures MongoDB indexes on startup (TTL on `expiresAt`, compound on `{status, createdAt}`)
 - Polls every 2s for pending jobs
 - For each job, validates in order:
@@ -134,6 +134,34 @@ Three layers of defense before code execution:
 |----------|-------|---------|
 | `RPC_SECRET` | Vercel + local `.env.local` | Shared secret for job authentication |
 | `MONGO_URI` | Vercel + local `.env.local` | MongoDB connection (same database) |
+| `RPC_LOCAL_DIRECT` | local `.env.local` only | `true` runs handlers in-process, bypassing the daemon (see below) |
+
+### Local Direct Mode (`RPC_LOCAL_DIRECT`)
+
+For local development you can skip the daemon entirely. With `RPC_LOCAL_DIRECT=true`,
+`callRemote` loads the handler with `tsx` and executes it **in the API server
+process** — returning the result synchronously instead of inserting a job and
+polling MongoDB.
+
+This means **no `yarn daemon`, no Mongo round-trip, and no connection-gate admin
+approval** (the gate lives inside `createRpcJob`, which direct mode skips).
+
+Double-guarded so it can never run in production:
+
+```ts
+const LOCAL_DIRECT_ENABLED =
+  process.env.NODE_ENV !== 'production' &&
+  (process.env.RPC_LOCAL_DIRECT ?? '').toLowerCase() === 'true';
+```
+
+The `NODE_ENV !== 'production'` half is the safety net: the whole reason RPC
+exists is to execute from the local machine's IP (the Vercel datacenter IP is
+blocked upstream), so running in-process on Vercel would defeat the purpose. A
+stray `RPC_LOCAL_DIRECT=true` on Vercel is therefore ignored. Locally, the API
+server *is* the local machine, so in-process execution is equivalent.
+
+The same `src/server/` path boundary still applies; the secret check and job
+cache are not relevant in this mode.
 
 ### Task Manager
 

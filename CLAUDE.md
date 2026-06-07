@@ -120,7 +120,7 @@ Full offline support with optimistic updates. Use this when implementing mutatio
 
 Passwordless auth with passkeys (WebAuthn / Face ID / Touch ID). Use this when enabling, testing, or migrating a project to passkey login, or wiring passkey enrollment.
 
-**Summary:** Opt-in passwordless auth behind the `AUTH_MODE` env flag (default `password`). Discoverable "just tap" login + a universal token-authenticated enrollment flow delivered by admin-generated links (email later). Passkeys replace the credential, not the JWT session. Per-project cutover via the `/migrate-to-passkeys` skill. rpID must be a stable domain (NOT a Vercel preview URL).
+**Summary:** Opt-in passwordless auth behind the `AUTH_MODE` env flag (default `password`). Discoverable "just tap" login + self-service username-gated sign-up (account + first passkey, then admin approval) + a token-authenticated enrollment flow (now recovery / add-a-device) delivered by admin-generated links. Passkeys replace the credential, not the JWT session. Per-project cutover via the `/migrate-to-passkeys` skill. rpID must be a stable domain (NOT a Vercel preview URL).
 
 **Docs:** [passwordless-passkeys.md](docs/template/passwordless-passkeys.md)
 
@@ -349,18 +349,6 @@ Handling npm package issues in Wix corporate network. Use this if experiencing l
 **Summary:** Run `yarn setup-hooks` once after cloning. Always use `yarn install`, never `npm install`.
 
 **Docs:** [wixpress-registry-issues.md](docs/template/wixpress-registry-issues.md)
-
----
-
-# github-agents-workflow
-
-## GitHub Agents Workflow Overview
-
-Architecture and flow of the AI-powered feature/bug pipeline. Use this to understand the agent workflow system.
-
-**Summary:** 9-status pipeline (Backlog → Product Development → Product Design → Bug Investigation → Tech Design → Ready for development → PR Review → Final Review → Done). Items enter via UI or CLI, approve via Telegram, then flow through Product Design / Bug Investigator / Tech Design / Implementor / PR Review / Workflow Review agents. Dual-tracked in source collections + workflow-items; all actions log to `agent-logs/issue-N.md`.
-
-**Docs:** [overview.md](docs/template/github-agents-workflow/overview.md), [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [cli.md](docs/template/github-agents-workflow/cli.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [workflow-items-architecture.md](docs/template/github-agents-workflow/workflow-items-architecture.md)
 
 ---
 
@@ -606,24 +594,6 @@ when using Vercel CLI tool or managing Vercel deployments
 - Check build logs first when deployments fail: `yarn vercel-cli logs --deployment dpl_xxx`
 
 **Full docs:** [vercel-cli-usage.md](docs/template/project-guidelines/vercel-cli-usage.md), [vercel-cli-guide.md](docs/template/vercel-cli-guide.md)
-
----
-
-# standalone-agents
-
-## Repo Commits Code Reviewer
-
-Standalone agent that reviews git commits for bugs and improvements. Use this to understand the automated code review system.
-
-**Summary:** Reviews current source code guided by recent commits using diff-budget batching, creates issues via agent-workflow for admin approval. Runs every 4 hours, NOT part of the GitHub Projects workflow pipeline.
-
-**Key Points:**
-- Diff-budget approach: ~1500 lines per run, walks commits chronologically
-- Creates issues via `yarn agent-workflow create` for Telegram approval
-- Output includes priority, size (XS/S/M/L), complexity, and risk assessment
-- State tracked in agent-tasks/repo-commits-code-reviewer/state.json
-
-**Docs:** [repo-commits-code-reviewer.md](docs/template/standalone-agents/repo-commits-code-reviewer.md)
 
 ---
 
