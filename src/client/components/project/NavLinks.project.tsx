@@ -5,8 +5,13 @@
  * This file is NOT synced from template - it's owned by your project.
  */
 
+import type { ReactNode } from 'react';
 import { NavItem } from '../template/layout/types';
 import { Search, Settings, Palette, Lightbulb, BarChart3, Database, Rss, Bookmark, History } from 'lucide-react';
+import { RpcConnectionIndicator } from '@/client/features/template/rpc-connection';
+
+/** Right-side top nav controls. RpcConnectionIndicator self-hides for non-admins. */
+export const TopNavBarRightSlot = (): ReactNode => <RpcConnectionIndicator />;
 
 /** Project-specific admin menu items */
 export const projectAdminMenuItems: NavItem[] = [

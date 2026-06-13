@@ -1,8 +1,8 @@
 {
-  "name": "RPC Daemon (my-youtube-app)",
+  "name": "RPC Daemon (my-youtube-app / youtube-app-db)",
   "uniqueKey": "my-youtube-app:rpc-daemon",
   "groupName": "my-youtube-app",
-  "description": "Polls MongoDB for remote function calls and executes locally (residential IP)",
+  "description": "Polls MongoDB database 'youtube-app-db' for remote function calls and executes locally (residential IP)",
   "script": {
     "path": "daemon",
     "args": ["--verbose"],
