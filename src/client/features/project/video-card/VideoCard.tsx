@@ -1,8 +1,10 @@
 import { useRouter } from '@/client/features';
-import { ExternalLink, Bookmark, BookmarkCheck } from 'lucide-react';
+import { ExternalLink, Bookmark, BookmarkCheck, CircleCheck, Circle } from 'lucide-react';
 import { useBookmarkToggle } from '@/client/features/project/bookmarks/hooks';
+import { useWatchedToggle } from '@/client/features/project/history';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
 import { formatDuration, formatViewCount, formatPublishedDate } from './formatUtils';
+import { useVideoProgress } from './hooks';
 
 interface VideoCardProps {
     video: YouTubeVideoSearchResult;
@@ -11,6 +13,8 @@ interface VideoCardProps {
 export const VideoCard = ({ video }: VideoCardProps) => {
     const { navigate } = useRouter();
     const { isBookmarked, toggle } = useBookmarkToggle(video);
+    const { isWatched, toggle: toggleWatched } = useWatchedToggle(video);
+    const progress = useVideoProgress(video.id, video.duration);
 
     const handleChannelClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -33,6 +37,11 @@ export const VideoCard = ({ video }: VideoCardProps) => {
                     <span className="absolute bottom-1 right-1 bg-foreground/80 text-background text-xs px-1.5 py-0.5 rounded">
                         {formatDuration(video.duration)}
                     </span>
+                )}
+                {progress >= 1 && (
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-foreground/30">
+                        <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
+                    </div>
                 )}
             </div>
             <div className="p-3 flex gap-3">
@@ -62,6 +71,14 @@ export const VideoCard = ({ video }: VideoCardProps) => {
                         </span>
                         <button
                             className="ml-auto flex-shrink-0 hover:text-foreground p-2 -m-2"
+                            aria-label={isWatched ? 'Mark as unwatched' : 'Mark as watched'}
+                            onClick={(e) => { e.stopPropagation(); toggleWatched(); }}
+                        >
+                            {isWatched ? <CircleCheck size={14} className="text-primary" /> : <Circle size={14} />}
+                        </button>
+                        <button
+                            className="flex-shrink-0 hover:text-foreground p-2 -m-2"
+                            aria-label={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
                             onClick={(e) => { e.stopPropagation(); toggle(); }}
                         >
                             {isBookmarked ? <BookmarkCheck size={14} className="text-primary" /> : <Bookmark size={14} />}
@@ -70,6 +87,7 @@ export const VideoCard = ({ video }: VideoCardProps) => {
                             href={`https://www.youtube.com/watch?v=${video.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
+                            aria-label="Open on YouTube"
                             className="flex-shrink-0 hover:text-foreground p-2 -m-2"
                             onClick={(e) => e.stopPropagation()}
                         >

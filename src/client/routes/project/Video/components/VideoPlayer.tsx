@@ -190,13 +190,15 @@ export const VideoPlayer = ({ videoId }: VideoPlayerProps) => {
                 <div className={`absolute top-2 right-2 sm:top-1 sm:right-1 z-10 flex items-center gap-2 sm:gap-1 ${showMini && !isMinimized ? '' : 'hidden'}`}>
                     <button
                         onClick={() => setIsMinimized(true)}
-                        className="rounded-full bg-black/60 p-2 sm:p-1 text-white hover:bg-black/80"
+                        aria-label="Minimize player"
+                        className="rounded-full border border-border bg-background/70 p-2 sm:p-1 text-foreground backdrop-blur-sm hover:bg-background"
                     >
                         <ChevronDown className="size-5 sm:size-3.5" />
                     </button>
                     <button
                         onClick={() => setIsDismissed(true)}
-                        className="rounded-full bg-black/60 p-2 sm:p-1 text-white hover:bg-black/80"
+                        aria-label="Close player"
+                        className="rounded-full border border-border bg-background/70 p-2 sm:p-1 text-foreground backdrop-blur-sm hover:bg-background"
                     >
                         <X className="size-5 sm:size-3.5" />
                     </button>

@@ -18,6 +18,28 @@ export function formatViewCount(viewCount: string): string {
     return `${num} views`;
 }
 
+/**
+ * Parse a video duration into seconds. Accepts ISO 8601 (`PT1H2M3S`),
+ * colon-separated (`1:02:03` / `2:03`), or a plain seconds string.
+ */
+export function parseDurationToSeconds(duration: string): number {
+    if (!duration) return 0;
+    const iso = duration.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+    if (iso) {
+        return parseInt(iso[1] || '0', 10) * 3600
+            + parseInt(iso[2] || '0', 10) * 60
+            + parseInt(iso[3] || '0', 10);
+    }
+    if (duration.includes(':')) {
+        const parts = duration.split(':').map((p) => parseInt(p, 10) || 0);
+        if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        if (parts.length === 2) return parts[0] * 60 + parts[1];
+        return parts[0] ?? 0;
+    }
+    const seconds = parseInt(duration, 10);
+    return isNaN(seconds) ? 0 : seconds;
+}
+
 export function formatPublishedDate(dateStr: string): string {
     if (!dateStr) return '';
     if (dateStr.includes('ago')) return dateStr;

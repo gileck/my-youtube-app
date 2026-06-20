@@ -97,8 +97,9 @@ export const ChannelFilters = ({
                         </Select>
                     </div>
                     <div>
-                        <label className="text-xs text-muted-foreground mb-1 block">Min views</label>
+                        <label htmlFor="channel-min-views" className="text-xs text-muted-foreground mb-1 block">Min views</label>
                         <Input
+                            id="channel-min-views"
                             type="number"
                             min={0}
                             value={filters.minViews || ''}

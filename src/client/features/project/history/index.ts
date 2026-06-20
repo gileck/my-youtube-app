@@ -1,3 +1,3 @@
 export { useHistoryStore } from './store';
-export { useAddToHistory } from './hooks';
+export { useAddToHistory, useWatchedToggle } from './hooks';
 export type { HistoryVideo } from './types';

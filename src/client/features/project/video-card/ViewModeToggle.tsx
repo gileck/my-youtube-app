@@ -14,7 +14,7 @@ export const ViewModeToggle = ({ viewMode, onViewModeChange }: ViewModeTogglePro
             <Button
                 variant={viewMode === 'grid' ? 'default' : 'ghost'}
                 size="icon"
-                className="h-8 w-8"
+                className="h-9 w-9"
                 onClick={() => onViewModeChange('grid')}
                 aria-label="Grid view"
             >
@@ -23,7 +23,7 @@ export const ViewModeToggle = ({ viewMode, onViewModeChange }: ViewModeTogglePro
             <Button
                 variant={viewMode === 'list' ? 'default' : 'ghost'}
                 size="icon"
-                className="h-8 w-8"
+                className="h-9 w-9"
                 onClick={() => onViewModeChange('list')}
                 aria-label="List view"
             >

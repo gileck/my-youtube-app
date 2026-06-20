@@ -87,8 +87,9 @@ export const SearchFilters = ({ viewMode, onViewModeChange }: SearchFiltersProps
                         </Select>
                     </div>
                     <div>
-                        <label className="text-xs text-muted-foreground mb-1 block">Min views</label>
+                        <label htmlFor="search-min-views" className="text-xs text-muted-foreground mb-1 block">Min views</label>
                         <Input
+                            id="search-min-views"
                             type="number"
                             min={0}
                             value={minViews || ''}

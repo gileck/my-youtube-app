@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Button } from '@/client/components/template/ui/button';
 import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { VideoGrid, VideoGridSkeleton, useViewModeStore } from '@/client/features/project/video-card';
+import { useHistoryStore } from '@/client/features/project/history';
 import { useVideoFeedStore } from './store';
 import { useVideoFeed } from './hooks';
 import { VideoFeedFilters, ManageSubscriptions } from './components';
@@ -18,9 +20,12 @@ export const VideoFeed = () => {
     const uploadDate = useVideoFeedStore((s) => s.uploadDate);
     const duration = useVideoFeedStore((s) => s.duration);
     const minViews = useVideoFeedStore((s) => s.minViews);
+    const hideWatched = useVideoFeedStore((s) => s.hideWatched);
 
     const viewMode = useViewModeStore((s) => s.viewMode);
     const setViewMode = useViewModeStore((s) => s.setViewMode);
+
+    const history = useHistoryStore((s) => s.history);
 
     const { videos, isLoading, hasError, error, hasSubscriptions } = useVideoFeed({
         sortBy,
@@ -28,6 +33,13 @@ export const VideoFeed = () => {
         duration,
         minViews,
     });
+
+    const watchedIds = useMemo(() => new Set(history.map((h) => h.id)), [history]);
+    const visibleVideos = useMemo(
+        () => (hideWatched ? videos.filter((v) => !watchedIds.has(v.id)) : videos),
+        [videos, watchedIds, hideWatched]
+    );
+    const watchedHiddenCount = videos.length - visibleVideos.length;
 
     const activeFilters: string[] = [];
     if (sortBy !== 'newest' && FILTER_LABELS.sortBy[sortBy]) {
@@ -88,9 +100,14 @@ export const VideoFeed = () => {
                                 </div>
                             )}
 
-                            {!isLoading && !hasError && videos.length > 0 && (
+                            {!isLoading && !hasError && visibleVideos.length > 0 && (
                                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                    <span>{videos.length} video{videos.length !== 1 ? 's' : ''}</span>
+                                    <span>{visibleVideos.length} video{visibleVideos.length !== 1 ? 's' : ''}</span>
+                                    {hideWatched && watchedHiddenCount > 0 && (
+                                        <span className="rounded-full bg-accent px-2 py-0.5 text-accent-foreground">
+                                            {watchedHiddenCount} watched hidden
+                                        </span>
+                                    )}
                                     {activeFilters.map((filter) => (
                                         <span key={filter} className="rounded-full bg-accent px-2 py-0.5 text-accent-foreground">
                                             {filter}
@@ -99,14 +116,16 @@ export const VideoFeed = () => {
                                 </div>
                             )}
 
-                            {!isLoading && !hasError && videos.length === 0 && (
+                            {!isLoading && !hasError && visibleVideos.length === 0 && (
                                 <p className="mt-6 text-center text-sm text-muted-foreground">
-                                    No videos found. Try adjusting your filters or adding more subscriptions.
+                                    {hideWatched && watchedHiddenCount > 0
+                                        ? "You're all caught up — every video in your feed has been watched."
+                                        : 'No videos found. Try adjusting your filters or adding more subscriptions.'}
                                 </p>
                             )}
 
-                            {videos.length > 0 && (
-                                <VideoGrid videos={videos} viewMode={viewMode} />
+                            {visibleVideos.length > 0 && (
+                                <VideoGrid videos={visibleVideos} viewMode={viewMode} />
                             )}
                         </>
                     )}

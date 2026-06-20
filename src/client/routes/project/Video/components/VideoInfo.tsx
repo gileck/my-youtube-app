@@ -1,6 +1,7 @@
 import { useRouter } from '@/client/features';
-import { ExternalLink, Bookmark, BookmarkCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { ExternalLink, Bookmark, BookmarkCheck, ChevronDown, ChevronUp, Share2 } from 'lucide-react';
 import { Button } from '@/client/components/template/ui/button';
+import { toast } from '@/client/components/template/ui/toast';
 import type { YouTubeVideoDetails } from '@/apis/project/youtube/types';
 import { useBookmarkToggle } from '@/client/features/project/bookmarks';
 import { useVideoUIToggle } from '@/client/features/project/video-ui-state';
@@ -25,6 +26,26 @@ export const VideoInfo = ({ video }: VideoInfoProps) => {
     const hasChannel = video.channelId && video.channelTitle && video.channelTitle !== 'N/A';
     const handleChannelClick = () => {
         if (hasChannel) navigate(`/channel/${video.channelId}`);
+    };
+
+    const handleShare = async () => {
+        const url = `https://www.youtube.com/watch?v=${video.id}`;
+        if (typeof navigator !== 'undefined' && navigator.share) {
+            try {
+                await navigator.share({ title: video.title, url });
+                return;
+            } catch (err) {
+                // User dismissed the share sheet — legitimate, nothing to do.
+                if (err instanceof DOMException && err.name === 'AbortError') return;
+                // Any other rejection is a real failure: fall through to the clipboard path.
+            }
+        }
+        try {
+            await navigator.clipboard.writeText(url);
+            toast.success('Link copied to clipboard');
+        } catch {
+            toast.error('Could not copy link');
+        }
     };
 
     return (
@@ -72,6 +93,15 @@ export const VideoInfo = ({ video }: VideoInfoProps) => {
                         <Bookmark size={14} />
                     )}
                     {isBookmarked ? 'Bookmarked' : 'Bookmark'}
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleShare}
+                    className="gap-1.5 rounded-full"
+                >
+                    <Share2 size={14} />
+                    Share
                 </Button>
                 <Button
                     variant="outline"

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Bookmark } from 'lucide-react';
+import { Bookmark, Search } from 'lucide-react';
 import { Button } from '@/client/components/template/ui/button';
+import { Input } from '@/client/components/template/ui/input';
 import { VideoGrid, ViewModeToggle, useViewModeStore } from '@/client/features/project/video-card';
 import type { YouTubeVideoSearchResult } from '@/apis/project/youtube/types';
 import { useBookmarksStore } from '@/client/features/project/bookmarks';
@@ -54,11 +55,21 @@ export const Bookmarks = () => {
     const setViewMode = useViewModeStore((s) => s.setViewMode);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle for sort
     const [sortBy, setSortBy] = useState<SortOption>('recently-added');
+    // eslint-disable-next-line state-management/prefer-state-architecture -- text input value
+    const [query, setQuery] = useState('');
 
     const sortedVideos = useMemo(
         () => sortBookmarks(bookmarks, sortBy).map(toSearchResult),
         [bookmarks, sortBy]
     );
+
+    const filteredVideos = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return sortedVideos;
+        return sortedVideos.filter(
+            (v) => v.title.toLowerCase().includes(q) || v.channelTitle.toLowerCase().includes(q)
+        );
+    }, [sortedVideos, query]);
 
     return (
         <div className="mx-auto max-w-3xl px-4 py-4">
@@ -78,19 +89,31 @@ export const Bookmarks = () => {
             </div>
 
             {bookmarks.length > 0 && (
-                <div className="mt-3 flex items-center gap-1 flex-wrap">
-                    {SORT_OPTIONS.map((opt) => (
-                        <Button
-                            key={opt.value}
-                            variant={sortBy === opt.value ? 'default' : 'ghost'}
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => setSortBy(opt.value)}
-                        >
-                            {opt.label}
-                        </Button>
-                    ))}
-                </div>
+                <>
+                    <div className="relative mt-3">
+                        <Search size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder="Search bookmarks"
+                            aria-label="Search bookmarks"
+                            className="h-9 pl-8"
+                        />
+                    </div>
+                    <div className="mt-3 flex items-center gap-1 flex-wrap">
+                        {SORT_OPTIONS.map((opt) => (
+                            <Button
+                                key={opt.value}
+                                variant={sortBy === opt.value ? 'default' : 'ghost'}
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => setSortBy(opt.value)}
+                            >
+                                {opt.label}
+                            </Button>
+                        ))}
+                    </div>
+                </>
             )}
 
             {bookmarks.length === 0 && (
@@ -102,8 +125,14 @@ export const Bookmarks = () => {
                 </div>
             )}
 
-            {sortedVideos.length > 0 && (
-                <VideoGrid videos={sortedVideos} viewMode={viewMode} />
+            {bookmarks.length > 0 && filteredVideos.length === 0 && (
+                <p className="mt-10 text-center text-sm text-muted-foreground">
+                    No bookmarks match &ldquo;{query.trim()}&rdquo;.
+                </p>
+            )}
+
+            {filteredVideos.length > 0 && (
+                <VideoGrid videos={filteredVideos} viewMode={viewMode} />
             )}
         </div>
     );

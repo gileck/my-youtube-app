@@ -3,7 +3,7 @@ import { Input } from '@/client/components/template/ui/input';
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/client/components/template/ui/select';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, EyeOff } from 'lucide-react';
 import { ViewModeToggle } from '@/client/features/project/video-card';
 import type { ViewMode } from '@/client/features/project/video-card';
 import { useVideoFeedStore } from '../store';
@@ -24,19 +24,34 @@ export const VideoFeedFilters = ({ viewMode, onViewModeChange }: VideoFeedFilter
     const setDuration = useVideoFeedStore((s) => s.setDuration);
     const minViews = useVideoFeedStore((s) => s.minViews);
     const setMinViews = useVideoFeedStore((s) => s.setMinViews);
+    const hideWatched = useVideoFeedStore((s) => s.hideWatched);
+    const setHideWatched = useVideoFeedStore((s) => s.setHideWatched);
 
     return (
         <div>
-            <div className="flex items-center justify-between">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setFiltersExpanded(!filtersExpanded)}
-                    className="gap-1.5 text-muted-foreground"
-                >
-                    <SlidersHorizontal size={16} />
-                    Filters
-                </Button>
+            <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setFiltersExpanded(!filtersExpanded)}
+                        className="gap-1.5 text-muted-foreground"
+                    >
+                        <SlidersHorizontal size={16} />
+                        Filters
+                    </Button>
+                    <Button
+                        variant={hideWatched ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setHideWatched(!hideWatched)}
+                        aria-pressed={hideWatched}
+                        aria-label="Hide watched videos"
+                        className={`gap-1.5 ${hideWatched ? '' : 'text-muted-foreground'}`}
+                    >
+                        <EyeOff size={16} />
+                        <span className="hidden sm:inline">Hide watched</span>
+                    </Button>
+                </div>
                 <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
             </div>
 
@@ -85,8 +100,9 @@ export const VideoFeedFilters = ({ viewMode, onViewModeChange }: VideoFeedFilter
                         </Select>
                     </div>
                     <div>
-                        <label className="text-xs text-muted-foreground mb-1 block">Min views</label>
+                        <label htmlFor="feed-min-views" className="text-xs text-muted-foreground mb-1 block">Min views</label>
                         <Input
+                            id="feed-min-views"
                             type="number"
                             min={0}
                             value={minViews || ''}
